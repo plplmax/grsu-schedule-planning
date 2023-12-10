@@ -1,0 +1,25 @@
+services: 
+  postgres: 
+    image: postgres:16.1-alpine
+    environment: 
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: planning
+    volumes: 
+      - planning_postgres_data:/var/lib/postgresql/data
+    ports: 
+      - '5432:5432'
+
+  pgadmin: 
+    image: dpage/pgadmin4:8.0
+    environment: 
+      PGADMIN_DEFAULT_EMAIL: pgadmin@planning.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    volumes: 
+      - planning_pgadmin_data:/var/lib/pgadmin
+    ports: 
+      - '5430:80'
+
+volumes: 
+  planning_postgres_data: 
+  planning_pgadmin_data:
