@@ -1,7 +1,7 @@
 package com.github.plplmax.planning
 
-import com.github.plplmax.planning.plugins.configureRouting
 import com.github.plplmax.planning.plugins.configureSerialization
+import com.github.plplmax.planning.plugins.routing.configureRouting
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*

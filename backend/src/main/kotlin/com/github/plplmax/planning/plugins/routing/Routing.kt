@@ -1,4 +1,4 @@
-package com.github.plplmax.planning.plugins
+package com.github.plplmax.planning.plugins.routing
 
 import io.ktor.server.application.*
 import io.ktor.server.response.*
