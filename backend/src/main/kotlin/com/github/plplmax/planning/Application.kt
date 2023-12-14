@@ -10,10 +10,10 @@ import io.ktor.server.netty.*
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
 fun Application.module() {
-    PgDatabase(
+    val pg = PgDatabase(
         config = environment.config.config("database.postgres"),
-        development = environment.config.propertyOrNull("ktor.development").toString().toBoolean()
-    ).also(PgDatabase::connected).create(DatabaseTables())
+        development = environment.config.propertyOrNull("ktor.development")?.getString().toBoolean()
+    ).also { it.create(DatabaseTables()) }
     SerializationPlugin().install(this)
-    RoutingPlugin().install(this)
+    RoutingPlugin(pg.connected()).install(this)
 }
