@@ -4,7 +4,7 @@ import com.github.plplmax.planning.database.tables.TimeslotsTable
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 
 class PgTimeslots(
@@ -15,32 +15,45 @@ class PgTimeslots(
         return newSuspendedTransaction(dispatcher, database) {
             TimeslotsTable.selectAll()
                 .sortedWith(
-                    compareBy({ it[TimeslotsTable.start] }, { it[TimeslotsTable.end] }, { it[TimeslotsTable.id] })
+                    compareBy({it[TimeslotsTable.dayOfWeek]},{ it[TimeslotsTable.start] }, { it[TimeslotsTable.end] }, { it[TimeslotsTable.id] })
                 )
                 .map(::toTimeslot)
         }
     }
 
-    override suspend fun insert(timeslots: List<Timeslot>) {
-        newSuspendedTransaction(dispatcher, database) {
-            TimeslotsTable.batchInsert(timeslots) {
-                this[TimeslotsTable.start] = it.start
-                this[TimeslotsTable.end] = it.end
-            }
+    override suspend fun insert(timeslot: NewTimeslot): Timeslot {
+        return newSuspendedTransaction(dispatcher, database) {
+            TimeslotsTable.insert {
+                it[dayOfWeek] = timeslot.dayOfWeek
+                it[start] = timeslot.start
+                it[end] = timeslot.end
+            }.resultedValues?.firstOrNull()?.let(::toTimeslot) ?: error("There is no result after inserting a new timeslot")
         }
     }
 
-    override suspend fun delete(ids: List<Int>) {
-        newSuspendedTransaction(dispatcher, database) {
-            TimeslotsTable.deleteWhere { TimeslotsTable.id inList ids }
+    override suspend fun update(timeslot: Timeslot): Timeslot {
+        return newSuspendedTransaction(dispatcher, database) {
+            TimeslotsTable.update({TimeslotsTable.id eq timeslot.id}) {
+                it[dayOfWeek] = timeslot.dayOfWeek
+                it[start] = timeslot.start
+                it[end] = timeslot.end
+            }.also { check(it > 0) {"There are no affected rows after updating timeslot with id = ${timeslot.id}"} }
+            TimeslotsTable.select { TimeslotsTable.id eq timeslot.id }.map(::toTimeslot).firstOrNull() ?: error("There is no timeslot with id = ${timeslot.id} after updating")
+        }
+    }
+
+    override suspend fun delete(id: Int): Int {
+        return newSuspendedTransaction(dispatcher, database) {
+            TimeslotsTable.deleteWhere { TimeslotsTable.id eq id }
                 .also {
-                    check(it == ids.size) { "Count of ids should be deleted is ${ids.size}, but database deletes $it" }
+                    check(it > 0) { "Database did not delete any timeslots with id = $id" }
                 }
         }
     }
 
     private fun toTimeslot(row: ResultRow): Timeslot = Timeslot(
         id = row[TimeslotsTable.id].value,
+        dayOfWeek = row[TimeslotsTable.dayOfWeek],
         start = row[TimeslotsTable.start],
         end = row[TimeslotsTable.end]
     )

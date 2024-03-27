@@ -1,74 +1,200 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import axios from 'axios'
-import type { Timeslots } from '@/timeslots/Timeslots'
-import type { Timeslot } from '@/timeslots/Timeslot'
-import type { TimeslotsResponse } from '@/timeslots/TimeslotsResponse'
+import type { DayOfWeek, Timeslot } from '@/timeslots/Timeslot'
+import { ref } from 'vue'
+import { LocalTime } from '@js-joda/core'
+import { onMounted } from 'vue'
+import service from '@/timeslots/timeslots.service'
 
-
-const timeslots = ref<Timeslots>({})
-
-const timeOptions: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: 'numeric' }
-
-const loadTimeslots = () => {
-  axios
-    .get<TimeslotsResponse>('/api/timeslots')
-    .then((response) => {
-      const tmslts: TimeslotsResponse = response.data
-      const result: Timeslots = {}
-      for (const tmslt in tmslts) {
-        result[tmslt] = tmslts[tmslt].map(
-          (value: any) =>
-          ({
-            id: value.id,
-            start: new Date(value.start),
-            end: new Date(value.end)
-          })
-        )
-      }
-      timeslots.value = result
+const timeslots = ref<Timeslot[]>([])
+const dialog = ref(false)
+const dialogDelete = ref(false)
+const dayOfWeeks: DayOfWeek[] = [
+  {
+    id: 1,
+    label: 'Понедельник'
+  },
+  {
+    id: 2,
+    label: 'Вторник'
+  },
+  {
+    id: 3,
+    label: 'Среда'
+  },
+  {
+    id: 4,
+    label: 'Четверг'
+  },
+  {
+    id: 5,
+    label: 'Пятница'
+  },
+  {
+    id: 6,
+    label: 'Суббота'
+  },
+  {
+    id: 7,
+    label: 'Воскресенье'
+  }
+]
+const hours = [...Array(24).keys()]
+const minutes = [...Array(60).keys()]
+const defaultTimeslot: Timeslot = {
+  id: 0,
+  dayOfWeek: 0,
+  start: LocalTime.of(),
+  end: LocalTime.of()
+}
+const activeTimeslot = ref<Timeslot>({ ...defaultTimeslot })
+const resetActiveTimeslot = () => (activeTimeslot.value = { ...defaultTimeslot })
+const computeActiveDayOfWeek = () => {
+  const dayOfWeek = activeTimeslot.value.dayOfWeek
+  return dayOfWeek === 0 ? null : dayOfWeek
+}
+const headers = [
+  { title: 'День недели', value: 'dayOfWeek' },
+  { title: 'Время начала', value: 'start' },
+  { title: 'Время конца', value: 'end' },
+  { title: 'Действия', key: 'actions' }
+]
+const startEditingTimeslot = (item: Timeslot) => {
+  activeTimeslot.value = item
+  dialog.value = true
+}
+const startDeletingTimeslot = (item: Timeslot) => {
+  activeTimeslot.value = item
+  dialogDelete.value = true
+}
+const closeDialog = () => (dialog.value = false)
+const closeDialogDelete = () => (dialogDelete.value = false)
+const addTimeslot = () =>
+  service
+    .add(activeTimeslot.value as Timeslot)
+    .then((value) => {
+      timeslots.value.push(value)
+      closeDialog()
+    })
+    .catch((error) => console.error(error))
+const editTimeslot = () =>
+  service
+    .edit(activeTimeslot.value as Timeslot)
+    .then((value) => {
+      const index = timeslots.value.findIndex((item) => item.id === value.id)
+      timeslots.value[index] = value
+      closeDialog()
+    })
+    .catch((error) => console.error(error))
+const deleteTimeslot = () => {
+  const id = activeTimeslot.value.id
+  service
+    .remove(id)
+    .then(() => {
+      const index = timeslots.value.findIndex((item) => item.id === id)
+      timeslots.value.splice(index, 1)
+      closeDialogDelete()
     })
     .catch((error) => console.error(error))
 }
-
-const deleteById = (id: number) => {
-  axios
-    .delete(`/api/timeslots/${id}`)
-    .then(() => loadTimeslots())
+onMounted(() =>
+  service
+    .all()
+    .then((value) => (timeslots.value = value))
     .catch((error) => console.error(error))
-}
-
-const deleteByDate = (date: string) => {
-  const ids = timeslots.value[date].map((item: Timeslot) => item.id)
-  axios
-    .delete('/api/timeslots', { params: { ids: ids }, paramsSerializer: { indexes: null } })
-    .then(() => loadTimeslots())
-    .catch((error) => console.error(error))
-}
-
-onMounted(() => loadTimeslots())
+)
 </script>
-
 <template>
-  <div v-if="timeslots" class="grid grid-cols-6 gap-4 items-start">
-    <div v-for="(value, key) in timeslots" :key="key">
-      <div class="border-solid border-2">
-        <div class="flex items-center">
-          <p>{{ new Date(key).toLocaleDateString() }}</p>
-          <font-awesome-icon :icon="['fas', 'xmark']" @click="deleteByDate(key as string)"
-            class="hover:cursor-pointer ml-2" />
-        </div>
-        <div v-for="item in value" :key="item.id">
-          <div class="bg-slate-200 p-1 flex items-center">
-            <p>
-              {{ item.start.toLocaleTimeString(undefined, timeOptions) }} -
-              {{ item.end.toLocaleTimeString(undefined, timeOptions) }}
-            </p>
-            <font-awesome-icon :icon="['fas', 'xmark']" @click="deleteById(item.id)"
-              class="hover:cursor-pointer ml-2" />
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <v-data-table :items="timeslots" :headers="headers" :sort-by="[
+    { key: 'dayOfWeek', order: 'asc' },
+    { key: 'start', order: 'asc' },
+    { key: 'end', order: 'asc' }
+  ]" multi-sort>
+    <template v-slot:top>
+      <v-toolbar flat>
+        <v-toolbar-title>Время</v-toolbar-title>
+        <v-divider class="mx-4" inset vertical></v-divider>
+        <v-spacer></v-spacer>
+        <v-dialog v-model="dialog" max-width="500px">
+          <template v-slot:activator="{ props }">
+            <v-btn class="mb-2" color="primary" dark v-bind="props" @click="resetActiveTimeslot">
+              Добавить время
+            </v-btn>
+          </template>
+          <v-card>
+            <v-card-title>
+              <span class="text-h5">{{ activeTimeslot.id === 0 ? 'Добавление' : 'Изменение' }} времени</span>
+            </v-card-title>
+
+            <v-card-text>
+              <v-container>
+                <v-row>
+                  <v-col>
+                    <v-select label="День недели" :items="dayOfWeeks" :item-title="(day) => day.label"
+                      :item-value="(day) => day.id" :model-value="computeActiveDayOfWeek()"
+                      @update:model-value="(value) => (activeTimeslot.dayOfWeek = value)" />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col>
+                    <v-select label="Часы (начало)" :items="hours" :model-value="activeTimeslot.start.hour()"
+                      @update:model-value="(hour) => (activeTimeslot.start = activeTimeslot.start.withHour(hour))
+    " />
+                  </v-col>
+                  <v-col>
+                    <v-select label="Минуты (начало)" :items="minutes" :model-value="activeTimeslot.start.minute()"
+                      @update:model-value="(minute) => (activeTimeslot.start = activeTimeslot.start.withMinute(minute))
+    " />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col>
+                    <v-select label="Часы (конец)" :items="hours" :model-value="activeTimeslot.end.hour()"
+                      @update:model-value="(hour) => (activeTimeslot.end = activeTimeslot.end.withHour(hour))
+    " />
+                  </v-col>
+                  <v-col>
+                    <v-select label="Минуты (конец)" :items="minutes" :model-value="activeTimeslot.end.minute()"
+                      @update:model-value="(minute) => (activeTimeslot.end = activeTimeslot.end.withMinute(minute))
+    " />
+                  </v-col>
+                </v-row>
+              </v-container>
+            </v-card-text>
+
+            <v-card-actions>
+              <v-spacer></v-spacer>
+              <v-btn color="blue-darken-1" variant="text" @click="closeDialog()"> Отменить </v-btn>
+              <v-btn color="blue-darken-1" variant="text"
+                @click="activeTimeslot.id === 0 ? addTimeslot() : editTimeslot()">
+                {{ activeTimeslot.id === 0 ? 'Добавить' : 'Изменить' }}
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
+        <v-dialog v-model="dialogDelete" max-width="500px">
+          <v-card>
+            <v-card-title class="text-h5">Вы уверены, что хотите удалить время?</v-card-title>
+            <v-card-actions>
+              <v-spacer></v-spacer>
+              <v-btn color="blue-darken-1" variant="text" @click="closeDialogDelete()">Cancel</v-btn>
+              <v-btn color="blue-darken-1" variant="text" @click="deleteTimeslot()">OK</v-btn>
+              <v-spacer></v-spacer>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
+      </v-toolbar>
+    </template>
+    <template v-slot:[`item.dayOfWeek`]="{ item }">
+      {{ dayOfWeeks.find((value) => value.id === item.dayOfWeek)?.label }}
+    </template>
+    <template v-slot:[`item.actions`]="{ item }">
+      <v-icon class="me-2" size="small" @click="startEditingTimeslot(item as Timeslot)">
+        mdi-pencil
+      </v-icon>
+      <v-icon size="small" @click="startDeletingTimeslot(item as Timeslot)"> mdi-delete </v-icon>
+    </template>
+    <template v-slot:no-data>
+      <v-btn color="primary"> Reset </v-btn>
+    </template>
+  </v-data-table>
 </template>

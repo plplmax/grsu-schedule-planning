@@ -13,25 +13,28 @@ class TimeslotsRoute(private val timeslots: Timeslots, vararg children: AppRoute
         parent.route("/timeslots") {
             super.install(this)
             get {
-                call.respond(timeslots.all().groupBy { it.start.toLocalDate().toString() })
+                call.respond(timeslots.all())
             }
             post {
-                call.receive<TimeslotsRangeOf>().save(timeslots)
-                call.respond(HttpStatusCode.NoContent)
+                call.receive<NewTimeslot>().let { timeslots.insert(it) }.let { call.respond(it) }
+            }
+            put("/{id}") {
+                call.parameters["id"]
+                    ?.toIntOrNull()
+                    ?.let {
+                        val timeslot = call.receive<NewTimeslot>()
+                        Timeslot(id = it, dayOfWeek = timeslot.dayOfWeek, start = timeslot.start, end = timeslot.end)
+                    }
+                    ?.let { timeslots.update(it) }
+                    ?.let { call.respond(it) }
+                    ?: call.respond(HttpStatusCode.BadRequest, "parameter `id` is not an integer")
             }
             delete("/{id}") {
                 call.parameters["id"]
                     ?.toIntOrNull()
-                    ?.let { timeslots.delete(listOf(it)) }
-                    ?: call.respond(HttpStatusCode.BadRequest, "id parameter is not an integer")
-                call.respond(HttpStatusCode.NoContent)
-            }
-            delete {
-                call.request.queryParameters.getAll("ids")
-                    ?.map(String::toInt)
                     ?.let { timeslots.delete(it) }
-                    ?: call.respond(HttpStatusCode.BadRequest, "There is no ids query parameter")
-                call.respond(HttpStatusCode.NoContent)
+                    ?.let { call.respond(it) }
+                    ?: call.respond(HttpStatusCode.BadRequest, "parameter `id` is not an integer")
             }
         }
     }

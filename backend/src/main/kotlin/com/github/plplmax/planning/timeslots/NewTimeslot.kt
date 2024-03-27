@@ -10,4 +10,4 @@ import java.time.DayOfWeek
 import java.time.LocalTime
 
 @Serializable
-data class Timeslot(val id: Int, val dayOfWeek: DayOfWeek, val start: LocalTime, val end: LocalTime)
+data class NewTimeslot(val dayOfWeek: DayOfWeek, val start: LocalTime, val end: LocalTime)

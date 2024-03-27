@@ -1,15 +1,18 @@
-import './assets/main.css'
+import './assets/main.css';
+import 'vuetify/styles';
+import '@mdi/font/css/materialdesignicons.css';
 
-import { createApp } from 'vue'
-import App from './App.vue'
-import { library } from '@fortawesome/fontawesome-svg-core'
-import router from './router'
-import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
-import { faXmark } from '@fortawesome/free-solid-svg-icons'
+import { createApp } from 'vue';
+import { createVuetify } from 'vuetify';
+import * as components from 'vuetify/components';
+import * as directives from 'vuetify/directives';
 
-library.add(faXmark)
+import App from './App.vue';
+import router from './router';
 
-const app = createApp(App)
+const vuetify = createVuetify({
+  components,
+  directives
+})
 
-app.use(router)
-app.component('font-awesome-icon', FontAwesomeIcon).mount('#app')
+createApp(App).use(router).use(vuetify).mount('#app')
