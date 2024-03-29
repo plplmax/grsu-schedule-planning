@@ -104,11 +104,16 @@ onMounted(() =>
 )
 </script>
 <template>
-  <v-data-table :items="timeslots" :headers="headers" :sort-by="[
-    { key: 'dayOfWeek', order: 'asc' },
-    { key: 'start', order: 'asc' },
-    { key: 'end', order: 'asc' }
-  ]" multi-sort>
+  <v-data-table
+    :items="timeslots"
+    :headers="headers"
+    :sort-by="[
+      { key: 'dayOfWeek', order: 'asc' },
+      { key: 'start', order: 'asc' },
+      { key: 'end', order: 'asc' }
+    ]"
+    multi-sort
+  >
     <template v-slot:top>
       <v-toolbar flat>
         <v-toolbar-title>Время</v-toolbar-title>
@@ -122,40 +127,67 @@ onMounted(() =>
           </template>
           <v-card>
             <v-card-title>
-              <span class="text-h5">{{ activeTimeslot.id === 0 ? 'Добавление' : 'Изменение' }} времени</span>
+              <span class="text-h5"
+                >{{ activeTimeslot.id === 0 ? 'Добавление' : 'Изменение' }} времени</span
+              >
             </v-card-title>
 
             <v-card-text>
               <v-container>
                 <v-row>
                   <v-col>
-                    <v-select label="День недели" :items="dayOfWeeks" :item-title="(day) => day.label"
-                      :item-value="(day) => day.id" :model-value="computeActiveDayOfWeek()"
-                      @update:model-value="(value) => (activeTimeslot.dayOfWeek = value)" />
+                    <v-select
+                      label="День недели"
+                      :items="dayOfWeeks"
+                      :item-title="(day) => day.label"
+                      :item-value="(day) => day.id"
+                      :model-value="computeActiveDayOfWeek()"
+                      @update:model-value="(value) => (activeTimeslot.dayOfWeek = value)"
+                    />
                   </v-col>
                 </v-row>
                 <v-row>
                   <v-col>
-                    <v-select label="Часы (начало)" :items="hours" :model-value="activeTimeslot.start.hour()"
-                      @update:model-value="(hour) => (activeTimeslot.start = activeTimeslot.start.withHour(hour))
-    " />
+                    <v-select
+                      label="Часы (начало)"
+                      :items="hours"
+                      :model-value="activeTimeslot.start.hour()"
+                      @update:model-value="
+                        (hour) => (activeTimeslot.start = activeTimeslot.start.withHour(hour))
+                      "
+                    />
                   </v-col>
                   <v-col>
-                    <v-select label="Минуты (начало)" :items="minutes" :model-value="activeTimeslot.start.minute()"
-                      @update:model-value="(minute) => (activeTimeslot.start = activeTimeslot.start.withMinute(minute))
-    " />
+                    <v-select
+                      label="Минуты (начало)"
+                      :items="minutes"
+                      :model-value="activeTimeslot.start.minute()"
+                      @update:model-value="
+                        (minute) => (activeTimeslot.start = activeTimeslot.start.withMinute(minute))
+                      "
+                    />
                   </v-col>
                 </v-row>
                 <v-row>
                   <v-col>
-                    <v-select label="Часы (конец)" :items="hours" :model-value="activeTimeslot.end.hour()"
-                      @update:model-value="(hour) => (activeTimeslot.end = activeTimeslot.end.withHour(hour))
-    " />
+                    <v-select
+                      label="Часы (конец)"
+                      :items="hours"
+                      :model-value="activeTimeslot.end.hour()"
+                      @update:model-value="
+                        (hour) => (activeTimeslot.end = activeTimeslot.end.withHour(hour))
+                      "
+                    />
                   </v-col>
                   <v-col>
-                    <v-select label="Минуты (конец)" :items="minutes" :model-value="activeTimeslot.end.minute()"
-                      @update:model-value="(minute) => (activeTimeslot.end = activeTimeslot.end.withMinute(minute))
-    " />
+                    <v-select
+                      label="Минуты (конец)"
+                      :items="minutes"
+                      :model-value="activeTimeslot.end.minute()"
+                      @update:model-value="
+                        (minute) => (activeTimeslot.end = activeTimeslot.end.withMinute(minute))
+                      "
+                    />
                   </v-col>
                 </v-row>
               </v-container>
@@ -164,8 +196,11 @@ onMounted(() =>
             <v-card-actions>
               <v-spacer></v-spacer>
               <v-btn color="blue-darken-1" variant="text" @click="closeDialog()"> Отменить </v-btn>
-              <v-btn color="blue-darken-1" variant="text"
-                @click="activeTimeslot.id === 0 ? addTimeslot() : editTimeslot()">
+              <v-btn
+                color="blue-darken-1"
+                variant="text"
+                @click="activeTimeslot.id === 0 ? addTimeslot() : editTimeslot()"
+              >
                 {{ activeTimeslot.id === 0 ? 'Добавить' : 'Изменить' }}
               </v-btn>
             </v-card-actions>
@@ -176,7 +211,9 @@ onMounted(() =>
             <v-card-title class="text-h5">Вы уверены, что хотите удалить время?</v-card-title>
             <v-card-actions>
               <v-spacer></v-spacer>
-              <v-btn color="blue-darken-1" variant="text" @click="closeDialogDelete()">Cancel</v-btn>
+              <v-btn color="blue-darken-1" variant="text" @click="closeDialogDelete()"
+                >Cancel</v-btn
+              >
               <v-btn color="blue-darken-1" variant="text" @click="deleteTimeslot()">OK</v-btn>
               <v-spacer></v-spacer>
             </v-card-actions>
