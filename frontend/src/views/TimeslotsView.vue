@@ -59,7 +59,7 @@ const headers = [
   { title: 'Действия', key: 'actions' }
 ]
 const startEditingTimeslot = (item: Timeslot) => {
-  activeTimeslot.value = item
+  activeTimeslot.value = { ...item }
   dialog.value = true
 }
 const startDeletingTimeslot = (item: Timeslot) => {
