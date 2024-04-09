@@ -45,8 +45,10 @@ class PgSubjects(
         }
     }
 
-    private fun toSubject(row: ResultRow): Subject = Subject(
-        id = row[SubjectsTable.id].value,
-        name = row[SubjectsTable.name]
-    )
+    companion object {
+        fun toSubject(row: ResultRow): Subject = Subject(
+            id = row[SubjectsTable.id].value,
+            name = row[SubjectsTable.name]
+        )
+    }
 }
