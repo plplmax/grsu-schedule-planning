@@ -1,6 +1,9 @@
 package com.github.plplmax.planning.plugins.routing
 
 import com.github.plplmax.planning.plugins.AppPlugin
+import com.github.plplmax.planning.rooms.PgRooms
+import com.github.plplmax.planning.rooms.RoomsRoute
+import com.github.plplmax.planning.rooms.ValidatedRooms
 import com.github.plplmax.planning.subjects.PgSubjects
 import com.github.plplmax.planning.subjects.SubjectsRoute
 import com.github.plplmax.planning.subjects.ValidatedSubjects
@@ -20,7 +23,8 @@ class RoutingPlugin(private val database: Database) : AppPlugin {
             ApiRoute(
                 TimeslotsRoute(ValidatedTimeslots(PgTimeslots(database))),
                 SubjectsRoute(ValidatedSubjects(PgSubjects(database))),
-                TeachersRoute(ValidatedTeachers(PgTeachers(database)))
+                TeachersRoute(ValidatedTeachers(PgTeachers(database))),
+                RoomsRoute(ValidatedRooms(PgRooms(database)))
             ).install(this)
         }
     }

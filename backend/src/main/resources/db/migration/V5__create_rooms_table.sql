@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS rooms (
+  id SERIAL PRIMARY KEY,
+  "name" VARCHAR(64) NOT NULL
+);
+
+ALTER TABLE rooms
+ADD CONSTRAINT rooms_name_unique UNIQUE ("name");
