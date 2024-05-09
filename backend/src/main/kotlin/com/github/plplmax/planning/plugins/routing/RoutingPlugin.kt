@@ -1,5 +1,8 @@
 package com.github.plplmax.planning.plugins.routing
 
+import com.github.plplmax.planning.groups.GroupsRoute
+import com.github.plplmax.planning.groups.PgGroups
+import com.github.plplmax.planning.groups.ValidatedGroups
 import com.github.plplmax.planning.plugins.AppPlugin
 import com.github.plplmax.planning.rooms.PgRooms
 import com.github.plplmax.planning.rooms.RoomsRoute
@@ -24,7 +27,8 @@ class RoutingPlugin(private val database: Database) : AppPlugin {
                 TimeslotsRoute(ValidatedTimeslots(PgTimeslots(database))),
                 SubjectsRoute(ValidatedSubjects(PgSubjects(database))),
                 TeachersRoute(ValidatedTeachers(PgTeachers(database))),
-                RoomsRoute(ValidatedRooms(PgRooms(database)))
+                RoomsRoute(ValidatedRooms(PgRooms(database))),
+                GroupsRoute(ValidatedGroups(PgGroups(database)))
             ).install(this)
         }
     }

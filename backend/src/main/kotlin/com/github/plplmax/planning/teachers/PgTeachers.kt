@@ -17,7 +17,7 @@ class PgTeachers(
     private val database: Database,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : Teachers {
-    override suspend fun all(): List<Teacher> {
+    override suspend fun all(): List<TeacherDetail> {
         return newSuspendedTransaction(dispatcher, database) {
             ((TeachersTable leftJoin TeachersToSubjectsTable) leftJoin SubjectsTable).selectAll()
                 .orderBy(
@@ -25,11 +25,11 @@ class PgTeachers(
                     TeachersTable.firstname to SortOrder.ASC,
                     SubjectsTable.name to SortOrder.ASC_NULLS_LAST
                 )
-                .let(::toTeachers)
+                .let(::toTeachersDetail)
         }
     }
 
-    override suspend fun insert(teacher: NewTeacher): Teacher {
+    override suspend fun insert(teacher: NewTeacher): TeacherDetail {
         return newSuspendedTransaction(dispatcher, database) {
             val id = TeachersTable.insertAndGetId {
                 it[firstname] = teacher.firstname
@@ -43,12 +43,12 @@ class PgTeachers(
 
             ((TeachersTable leftJoin TeachersToSubjectsTable) leftJoin SubjectsTable).select(TeachersTable.id eq id)
                 .orderBy(SubjectsTable.name to SortOrder.ASC_NULLS_LAST)
-                .let(::toTeachers)
+                .let(::toTeachersDetail)
                 .firstOrNull() ?: error("There is no result after inserting a new teacher")
         }
     }
 
-    override suspend fun update(teacher: Teacher): Teacher {
+    override suspend fun update(teacher: TeacherDetail): TeacherDetail {
         return newSuspendedTransaction(dispatcher, database) {
             TeachersTable.update({ TeachersTable.id eq teacher.id }) {
                 it[firstname] = teacher.firstname
@@ -57,7 +57,7 @@ class PgTeachers(
 
             val oldTeacher =
                 ((TeachersTable leftJoin TeachersToSubjectsTable) leftJoin SubjectsTable).select(TeachersTable.id eq teacher.id)
-                    .let(::toTeachers)
+                    .let(::toTeachersDetail)
                     .firstOrNull()
                     ?: error("There is no results after fetching subjects for teacher with id = ${teacher.id}")
             val addedSubjects = teacher.subjects - oldTeacher.subjects.toSet()
@@ -73,7 +73,7 @@ class PgTeachers(
 
             ((TeachersTable leftJoin TeachersToSubjectsTable) leftJoin SubjectsTable).select(TeachersTable.id eq teacher.id)
                 .orderBy(SubjectsTable.name to SortOrder.ASC_NULLS_LAST)
-                .let(::toTeachers)
+                .let(::toTeachersDetail)
                 .firstOrNull() ?: error("There is no result after updating a teacher")
         }
     }
@@ -95,15 +95,15 @@ class PgTeachers(
         }
     }
 
-    private fun toTeachers(query: Query): List<Teacher> {
-        val teachers = mutableMapOf<Int, Teacher>()
+    private fun toTeachersDetail(query: Query): List<TeacherDetail> {
+        val teachers = mutableMapOf<Int, TeacherDetail>()
 
         query.forEach { row ->
             val teacherId = row[TeachersTable.id].value
             val subjectExists = row.getOrNull(TeachersToSubjectsTable.subjectId) != null
             val teacher = teachers[teacherId]?.let {
                 it.copy(subjects = it.subjects + PgSubjects.toSubject(row))
-            } ?: Teacher(
+            } ?: TeacherDetail(
                 id = teacherId,
                 firstname = row[TeachersTable.firstname],
                 lastname = row[TeachersTable.lastname],
@@ -113,5 +113,13 @@ class PgTeachers(
         }
 
         return teachers.values.toList()
+    }
+
+    companion object {
+        fun toTeacher(row: ResultRow): Teacher = Teacher(
+            id = row[TeachersTable.id].value,
+            firstname = row[TeachersTable.firstname],
+            lastname = row[TeachersTable.lastname]
+        )
     }
 }

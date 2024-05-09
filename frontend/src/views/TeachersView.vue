@@ -2,10 +2,10 @@
 import type { Subject } from '@/subjects/Subject'
 import { onMounted, ref } from 'vue'
 import teachersService from '@/teachers/teachers.service'
-import type { Teacher } from '@/teachers/Teacher'
+import type { TeacherDetail } from '@/teachers/Teacher'
 import subjectsService from '@/subjects/subjects.service'
 
-const teachers = ref<Teacher[]>([])
+const teachers = ref<TeacherDetail[]>([])
 const subjects = ref<Subject[]>([])
 const headers = [
   { title: 'Фамилия', value: 'lastname' },
@@ -15,13 +15,13 @@ const headers = [
 ]
 const dialog = ref(false)
 const dialogDelete = ref(false)
-const defaultTeacher: Teacher = {
+const defaultTeacher: TeacherDetail = {
   id: 0,
   firstname: '',
   lastname: '',
   subjects: []
 }
-const activeTeacher = ref<Teacher>({ ...defaultTeacher })
+const activeTeacher = ref<TeacherDetail>({ ...defaultTeacher })
 const resetActiveTeacher = () => (activeTeacher.value = { ...defaultTeacher })
 const closeDialog = () => (dialog.value = false)
 const closeDialogDelete = () => (dialogDelete.value = false)
@@ -53,11 +53,11 @@ const deleteTeacher = () => {
     })
     .catch((error) => console.error(error))
 }
-const startEditingTeacher = (item: Teacher) => {
+const startEditingTeacher = (item: TeacherDetail) => {
   activeTeacher.value = { ...item }
   dialog.value = true
 }
-const startDeletingTeacher = (item: Teacher) => {
+const startDeletingTeacher = (item: TeacherDetail) => {
   activeTeacher.value = item
   dialogDelete.value = true
 }

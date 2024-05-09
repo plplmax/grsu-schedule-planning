@@ -51,10 +51,12 @@ class PgTimeslots(
         }
     }
 
-    private fun toTimeslot(row: ResultRow): Timeslot = Timeslot(
-        id = row[TimeslotsTable.id].value,
-        dayOfWeek = row[TimeslotsTable.dayOfWeek],
-        start = row[TimeslotsTable.start],
-        end = row[TimeslotsTable.end]
-    )
+    companion object {
+        fun toTimeslot(row: ResultRow): Timeslot = Timeslot(
+            id = row[TimeslotsTable.id].value,
+            dayOfWeek = row[TimeslotsTable.dayOfWeek],
+            start = row[TimeslotsTable.start],
+            end = row[TimeslotsTable.end]
+        )
+    }
 }

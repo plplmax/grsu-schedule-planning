@@ -1,7 +1,7 @@
 package com.github.plplmax.planning.teachers
 
 class ValidatedTeachers(private val origin: Teachers) : Teachers by origin {
-    override suspend fun insert(teacher: NewTeacher): Teacher {
+    override suspend fun insert(teacher: NewTeacher): TeacherDetail {
         val processedTeacher =
             teacher.copy(firstname = processName(teacher.firstname), lastname = processName(teacher.lastname))
         validateNameLength(teacher.firstname, teacher.lastname)
@@ -11,7 +11,7 @@ class ValidatedTeachers(private val origin: Teachers) : Teachers by origin {
         return origin.insert(processedTeacher)
     }
 
-    override suspend fun update(teacher: Teacher): Teacher {
+    override suspend fun update(teacher: TeacherDetail): TeacherDetail {
         val processedTeacher =
             teacher.copy(firstname = processName(teacher.firstname), lastname = processName(teacher.lastname))
         validateNameLength(teacher.firstname, teacher.lastname)
