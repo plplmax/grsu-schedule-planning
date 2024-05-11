@@ -131,8 +131,6 @@ const updateHours = (hours: number, subject: Subject, teacher?: Teacher) => {
     .concat(lessons)
 }
 
-setInterval(() => console.log(activeGroup.value), 1000)
-
 onMounted(() => {
   groupsService
     .all()
