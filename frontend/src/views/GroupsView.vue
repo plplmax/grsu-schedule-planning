@@ -119,7 +119,7 @@ const updateHours = (hours: number, subject: Subject, teacher?: Teacher) => {
   const old = lessons.length
   const diff = hours - old
   if (diff > 0) {
-    lessons.push(...Array.from(Array(diff), () => ({ ...lessons[0], id: 0 })))
+    lessons.push(...Array.from(Array(diff), () => ({ ...lessons[0], id: 0, timeslot: null })))
   }
 
   if (diff < 0) {
