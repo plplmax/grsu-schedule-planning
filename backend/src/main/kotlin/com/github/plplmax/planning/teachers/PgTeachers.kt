@@ -68,7 +68,9 @@ class PgTeachers(
                 this[TeachersToSubjectsTable.subjectId] = it.id
             }
 
-            TeachersToSubjectsTable.deleteWhere { subjectId inList deletedSubjects.map(Subject::id) }
+            TeachersToSubjectsTable.deleteWhere {
+                (teacherId eq teacher.id) and (subjectId inList deletedSubjects.map(Subject::id))
+            }
                 .also { check(it == deletedSubjects.size) { "Not all TeachersToSubjects rows were deleted. Expected = ${deletedSubjects.size}, actual = $it" } }
 
             ((TeachersTable leftJoin TeachersToSubjectsTable) leftJoin SubjectsTable).select(TeachersTable.id eq teacher.id)
