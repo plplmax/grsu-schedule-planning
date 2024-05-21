@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DayOfWeek, Timeslot } from '@/timeslots/Timeslot'
+import { dayOfWeeks, type Timeslot } from '@/timeslots/Timeslot'
 import { ref } from 'vue'
 import { LocalTime } from '@js-joda/core'
 import { onMounted } from 'vue'
@@ -8,36 +8,6 @@ import service from '@/timeslots/timeslots.service'
 const timeslots = ref<Timeslot[]>([])
 const dialog = ref(false)
 const dialogDelete = ref(false)
-const dayOfWeeks: DayOfWeek[] = [
-  {
-    id: 1,
-    label: 'Понедельник'
-  },
-  {
-    id: 2,
-    label: 'Вторник'
-  },
-  {
-    id: 3,
-    label: 'Среда'
-  },
-  {
-    id: 4,
-    label: 'Четверг'
-  },
-  {
-    id: 5,
-    label: 'Пятница'
-  },
-  {
-    id: 6,
-    label: 'Суббота'
-  },
-  {
-    id: 7,
-    label: 'Воскресенье'
-  }
-]
 const hours = [...Array(24).keys()]
 const minutes = [...Array(60).keys()]
 const defaultTimeslot: Timeslot = {
