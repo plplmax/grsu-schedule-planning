@@ -42,6 +42,11 @@ const router = createRouter({
       path: '/groups',
       name: 'groups',
       component: () => import('../views/GroupsView.vue')
+    },
+    {
+      path: '/timetable',
+      name: 'timetable',
+      component: () => import('../views/TimetableView.vue')
     }
   ]
 })

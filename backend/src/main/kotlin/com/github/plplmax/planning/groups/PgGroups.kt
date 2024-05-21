@@ -121,6 +121,12 @@ class PgGroups(
     }
 
     companion object {
+        fun toGroup(row: ResultRow): Group = Group(
+            id = row[GroupsTable.id].value,
+            number = row[GroupsTable.number],
+            letter = row[GroupsTable.letter]
+        )
+
         fun toGroupDetails(query: Query): List<GroupDetail> {
             val groups = mutableMapOf<Group, List<Lesson>>()
 

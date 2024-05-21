@@ -6,6 +6,7 @@ val kotlinVersion: String by project
 val ktorVersion: String by project
 val logbackVersion: String by project
 val postgresVersion: String by project
+val timefoldVersion: String by project
 
 plugins {
     kotlin("jvm") version "1.9.21"
@@ -40,6 +41,7 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-java-time:$exposedVersion")
     implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
     implementation("org.postgresql:postgresql:$postgresVersion")
+    implementation("ai.timefold.solver:timefold-solver-core:$timefoldVersion")
     testImplementation("io.ktor:ktor-server-tests:$ktorVersion")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlinVersion")
 }
