@@ -8,6 +8,7 @@ import ai.timefold.solver.core.api.score.stream.ConstraintProvider
 import ai.timefold.solver.core.api.score.stream.Joiners
 import com.github.plplmax.planning.lessons.Lesson
 import com.github.plplmax.planning.timeslots.Timeslot
+import java.time.Duration
 import java.util.function.Function
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
@@ -20,7 +21,8 @@ class TimetableConstraintProvider : ConstraintProvider {
             groupConflict(constraintFactory),
             evenlyDistributedLessonsPerDay(constraintFactory),
             noGapsAtFirstTimeslotEachDay(constraintFactory),
-            subjectVarietyPerDay(constraintFactory)
+            subjectVarietyPerDay(constraintFactory),
+            groupTimeEfficiency(constraintFactory)
         )
     }
 
@@ -120,5 +122,24 @@ class TimetableConstraintProvider : ConstraintProvider {
             .groupBy(Lesson::group, { it.timeslot?.dayOfWeek }, toList(Lesson::subject))
             .penalize(HardSoftScore.ONE_SOFT) { _, _, subjects -> subjects.size - subjects.distinct().size }
             .asConstraint("Subject variety per day")
+    }
+
+    private fun groupTimeEfficiency(constraintFactory: ConstraintFactory): Constraint {
+        return constraintFactory.forEach(Lesson::class.java)
+            .groupBy(
+                Lesson::group,
+                { it.timeslot?.dayOfWeek },
+                collectAndThen(toList(Lesson::timeslot)) { timeslots -> timeslots.sortedBy { it?.start }.zipWithNext() }
+            )
+            .penalize(HardSoftScore.ONE_HARD) { _, _, timeslots ->
+                timeslots.map {
+                    val between = Duration.between(
+                        it.first?.end,
+                        it.second?.start
+                    )
+                    between >= Duration.ofMinutes(30)
+                }.map { if (it) 1 else 0 }.sum()
+            }
+            .asConstraint("Group time efficiency")
     }
 }
