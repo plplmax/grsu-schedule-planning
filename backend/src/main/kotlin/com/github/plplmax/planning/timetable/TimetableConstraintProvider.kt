@@ -19,7 +19,8 @@ class TimetableConstraintProvider : ConstraintProvider {
             teacherConflict(constraintFactory),
             groupConflict(constraintFactory),
             evenlyDistributedLessonsPerDay(constraintFactory),
-            noGapsAtFirstTimeslotEachDay(constraintFactory)
+            noGapsAtFirstTimeslotEachDay(constraintFactory),
+            subjectVarietyPerDay(constraintFactory)
         )
     }
 
@@ -112,5 +113,12 @@ class TimetableConstraintProvider : ConstraintProvider {
             )
             .penalize(HardSoftScore.ONE_HARD)
             .asConstraint("No gaps at first timeslot each day")
+    }
+
+    private fun subjectVarietyPerDay(constraintFactory: ConstraintFactory): Constraint {
+        return constraintFactory.forEach(Lesson::class.java)
+            .groupBy(Lesson::group, { it.timeslot?.dayOfWeek }, toList(Lesson::subject))
+            .penalize(HardSoftScore.ONE_SOFT) { _, _, subjects -> subjects.size - subjects.distinct().size }
+            .asConstraint("Subject variety per day")
     }
 }
