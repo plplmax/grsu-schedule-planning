@@ -23,6 +23,7 @@ class PgSubjects(
         return newSuspendedTransaction(dispatcher, database) {
             SubjectsTable.insert {
                 it[name] = subject.name
+                it[complexity] = subject.complexity
             }.resultedValues?.firstOrNull()?.let(::toSubject) ?: error("There is no result after inserting a new subject")
         }
     }
@@ -31,6 +32,7 @@ class PgSubjects(
         return newSuspendedTransaction(dispatcher, database) {
             SubjectsTable.update({SubjectsTable.id eq subject.id}) {
                 it[name] = subject.name
+                it[complexity] = subject.complexity
             }.also { check(it > 0) {"There are no affected rows after updating subject with id = ${subject.id}"} }
             SubjectsTable.select { SubjectsTable.id eq subject.id }.map(::toSubject).firstOrNull() ?: error("There is no subject with id = ${subject.id} after updating")
         }
@@ -48,7 +50,8 @@ class PgSubjects(
     companion object {
         fun toSubject(row: ResultRow): Subject = Subject(
             id = row[SubjectsTable.id].value,
-            name = row[SubjectsTable.name]
+            name = row[SubjectsTable.name],
+            complexity = row[SubjectsTable.complexity]
         )
     }
 }

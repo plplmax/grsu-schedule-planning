@@ -1,0 +1,1 @@
+ALTER TABLE subjects ADD complexity INT NOT NULL DEFAULT 0;

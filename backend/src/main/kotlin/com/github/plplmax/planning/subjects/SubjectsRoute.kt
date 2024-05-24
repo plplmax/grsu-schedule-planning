@@ -23,7 +23,7 @@ class SubjectsRoute(private val subjects: Subjects, vararg children: AppRoute) :
                     ?.toIntOrNull()
                     ?.let {
                         val subject = call.receive<NewSubject>()
-                        Subject(id = it, name = subject.name)
+                        Subject(id = it, name = subject.name, complexity = subject.complexity)
                     }
                     ?.let { subjects.update(it) }
                     ?.let { call.respond(it) }

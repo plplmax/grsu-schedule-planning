@@ -22,7 +22,8 @@ class TimetableConstraintProvider : ConstraintProvider {
             evenlyDistributedLessonsPerDay(constraintFactory),
             noGapsAtFirstTimeslotEachDay(constraintFactory),
             subjectVarietyPerDay(constraintFactory),
-            groupTimeEfficiency(constraintFactory)
+            groupTimeEfficiency(constraintFactory),
+            dayComplexity(constraintFactory)
         )
     }
 
@@ -141,5 +142,30 @@ class TimetableConstraintProvider : ConstraintProvider {
                 }.map { if (it) 1 else 0 }.sum()
             }
             .asConstraint("Group time efficiency")
+    }
+
+    private fun dayComplexity(constraintFactory: ConstraintFactory): Constraint {
+        return constraintFactory.forEach(Lesson::class.java)
+            .groupBy(
+                Lesson::group,
+                { it.timeslot?.dayOfWeek },
+                sum { lesson -> lesson.subject.complexity }
+            ).concat(
+                constraintFactory.forEach(Lesson::class.java)
+                    .groupBy(Lesson::group)
+                    .join(
+                        constraintFactory.forEach(Timeslot::class.java)
+                            .groupBy(Timeslot::dayOfWeek)
+                    ).ifNotExists(
+                        Lesson::class.java,
+                        Joiners.equal(
+                            { group, dayOfWeek -> group to dayOfWeek },
+                            { lesson -> lesson.group to lesson.timeslot?.dayOfWeek })
+                    ).expand { _, _ -> 0 }
+            ).groupBy({ group, _, _ -> group }, toMap({ _, dayOfWeek, _ -> dayOfWeek }, { _, _, count -> count }))
+            .map({ group, _ -> group }, { _, dayOfWeeks -> dayOfWeeks.mapValues { entry -> entry.value.first() } })
+            .penalize(HardSoftScore.ONE_SOFT) { _, dayOfWeeks ->
+                with(dayOfWeeks) { -values.sumOf { it * it } + (values.sumOf { it } * values.sumOf { it } * 1.0 / size).roundToInt() }.absoluteValue
+            }.asConstraint("Day complexity")
     }
 }

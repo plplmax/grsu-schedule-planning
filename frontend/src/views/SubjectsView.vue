@@ -8,11 +8,13 @@ const headers = [
   { title: 'Название', value: 'name' },
   { title: 'Действия', value: 'actions' }
 ]
+const complexityPoints = [...Array(13).keys()]
 const dialog = ref(false)
 const dialogDelete = ref(false)
 const defaultSubject: Subject = {
   id: 0,
-  name: ''
+  name: '',
+  complexity: 0
 }
 const activeSubject = ref<Subject>({ ...defaultSubject })
 const resetActiveSubject = () => (activeSubject.value = { ...defaultSubject })
@@ -88,6 +90,11 @@ onMounted(() =>
                 :model-value="activeSubject.name"
                 @update:model-value="(value) => (activeSubject.name = value)"
               ></v-text-field>
+              <v-select
+                label="Балл сложности"
+                :items="complexityPoints"
+                v-model="activeSubject.complexity"
+              ></v-select>
             </v-card-text>
 
             <v-card-actions>

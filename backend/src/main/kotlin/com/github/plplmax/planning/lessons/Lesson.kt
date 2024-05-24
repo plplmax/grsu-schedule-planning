@@ -17,7 +17,7 @@ data class Lesson(
     val id: Int = 0,
     val group: Group = Group(0, 0, ' '),
     val teacher: Teacher = Teacher(0, "", ""),
-    val subject: Subject = Subject(0, ""),
+    val subject: Subject = Subject(0, "", 0),
     val room: Room = Room(0, ""),
     @PlanningVariable
     val timeslot: Timeslot? = null
