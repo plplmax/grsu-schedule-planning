@@ -15,6 +15,16 @@ class GroupsRoute(private val groups: Groups, vararg children: AppRoute) : AppRo
             get {
                 call.respond(groups.all())
             }
+            get("/details") {
+                call.respond(groups.allDetails())
+            }
+            get("/{id}") {
+                call.parameters["id"]
+                    ?.toIntOrNull()
+                    ?.let { groups.findById(it) }
+                    ?.let { group -> if (group.isPresent) call.respond(group.get()) else call.respond(HttpStatusCode.NotFound) }
+                    ?: call.respond(HttpStatusCode.BadRequest, PARAMETER_ERROR)
+            }
             post {
                 call.receive<NewGroup>().let { groups.insert(it) }.let { call.respond(it) }
             }
@@ -27,15 +37,19 @@ class GroupsRoute(private val groups: Groups, vararg children: AppRoute) : AppRo
                     }
                     ?.let { groups.update(it) }
                     ?.let { call.respond(it) }
-                    ?: call.respond(HttpStatusCode.BadRequest, "parameter `id` is not an integer")
+                    ?: call.respond(HttpStatusCode.BadRequest, PARAMETER_ERROR)
             }
             delete("/{id}") {
                 call.parameters["id"]
                     ?.toIntOrNull()
                     ?.let { groups.delete(it) }
                     ?.let { call.respond(it) }
-                    ?: call.respond(HttpStatusCode.BadRequest, "parameter `id` is not an integer")
+                    ?: call.respond(HttpStatusCode.BadRequest, PARAMETER_ERROR)
             }
         }
+    }
+
+    companion object {
+        private const val PARAMETER_ERROR = "parameter `id` is not an integer"
     }
 }

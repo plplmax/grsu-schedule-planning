@@ -12,12 +12,21 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import java.util.*
 
 class PgGroups(
     private val database: Database,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : Groups {
-    override suspend fun all(): List<GroupDetail> {
+    override suspend fun all(): List<Group> {
+        return newSuspendedTransaction(dispatcher, database) {
+            GroupsTable.selectAll()
+                .orderBy(GroupsTable.number to SortOrder.DESC, GroupsTable.letter to SortOrder.ASC)
+                .map(::toGroup)
+        }
+    }
+
+    override suspend fun allDetails(): List<GroupDetail> {
         return newSuspendedTransaction(dispatcher, database) {
             GroupsTable.leftJoin(LessonsTable)
                 .leftJoin(TeachersTable, onColumn = { LessonsTable.teacherId }, otherColumn = { TeachersTable.id })
@@ -31,6 +40,20 @@ class PgGroups(
                     SubjectsTable.name to SortOrder.ASC
                 )
                 .let(::toGroupDetails)
+        }
+    }
+
+    override suspend fun findById(id: Int): Optional<GroupDetail> {
+        return newSuspendedTransaction(dispatcher, database) {
+            GroupsTable.leftJoin(LessonsTable)
+                .leftJoin(TeachersTable, onColumn = { LessonsTable.teacherId }, otherColumn = { TeachersTable.id })
+                .leftJoin(SubjectsTable, onColumn = { LessonsTable.subjectId }, otherColumn = { SubjectsTable.id })
+                .leftJoin(RoomsTable)
+                .leftJoin(TimeslotsTable)
+                .select { GroupsTable.id eq id }
+                .orderBy(SubjectsTable.name to SortOrder.ASC)
+                .let(::toGroupDetails)
+                .let { Optional.ofNullable(it.firstOrNull()) }
         }
     }
 

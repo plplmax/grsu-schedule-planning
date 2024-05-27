@@ -7,6 +7,7 @@ import ai.timefold.solver.core.api.score.stream.ConstraintFactory
 import ai.timefold.solver.core.api.score.stream.ConstraintProvider
 import ai.timefold.solver.core.api.score.stream.Joiners
 import com.github.plplmax.planning.lessons.Lesson
+import com.github.plplmax.planning.subjects.paired.PairedSubjects
 import com.github.plplmax.planning.timeslots.Timeslot
 import java.time.Duration
 import java.util.function.Function
@@ -23,7 +24,8 @@ class TimetableConstraintProvider : ConstraintProvider {
             noGapsAtFirstTimeslotEachDay(constraintFactory),
             subjectVarietyPerDay(constraintFactory),
             groupTimeEfficiency(constraintFactory),
-            dayComplexity(constraintFactory)
+            dayComplexity(constraintFactory),
+            pairedSubjects(constraintFactory)
         )
     }
 
@@ -121,7 +123,7 @@ class TimetableConstraintProvider : ConstraintProvider {
     private fun subjectVarietyPerDay(constraintFactory: ConstraintFactory): Constraint {
         return constraintFactory.forEach(Lesson::class.java)
             .groupBy(Lesson::group, { it.timeslot?.dayOfWeek }, toList(Lesson::subject))
-            .penalize(HardSoftScore.ONE_SOFT) { _, _, subjects -> subjects.size - subjects.distinct().size }
+            .penalize(HardSoftScore.ONE_HARD) { _, _, subjects -> subjects.size - subjects.distinct().size }
             .asConstraint("Subject variety per day")
     }
 
@@ -167,5 +169,44 @@ class TimetableConstraintProvider : ConstraintProvider {
             .penalize(HardSoftScore.ONE_SOFT) { _, dayOfWeeks ->
                 with(dayOfWeeks) { -values.sumOf { it * it } + (values.sumOf { it } * values.sumOf { it } * 1.0 / size).roundToInt() }.absoluteValue
             }.asConstraint("Day complexity")
+    }
+
+    private fun pairedSubjects(constraintFactory: ConstraintFactory): Constraint {
+        return constraintFactory.forEach(PairedSubjects::class.java)
+            .join(
+                constraintFactory.forEach(PairedSubjects::class.java)
+                    .flattenLast(PairedSubjects::groups)
+                    .distinct(),
+                Joiners.filtering { subjects, group -> subjects.groups.contains(group) }
+            )
+            .join(
+                Lesson::class.java,
+                Joiners.equal({ _, group -> group }, { lesson -> lesson.group }),
+                Joiners.equal({ subjects, _ -> subjects.firstSubject }, { lesson -> lesson.subject })
+            )
+            .groupBy({ subjects, _, _ -> subjects }, { _, group, _ -> group }, toList { _, _, lesson -> lesson })
+            .concat(
+                constraintFactory.forEach(PairedSubjects::class.java)
+                    .join(
+                        Lesson::class.java,
+                        Joiners.equal(PairedSubjects::secondSubject, Lesson::subject),
+                        Joiners.filtering { subjects, lesson -> subjects.groups.contains(lesson.group) })
+                    .groupBy({ subjects, _ -> subjects }, { _, lesson -> lesson.group }, toList { _, lesson -> lesson })
+            )
+            .groupBy({ _, group, _ -> group }, { subjects, _, _ -> subjects }, toList { _, _, lessons -> lessons })
+            .map({ group, _, _ -> group }, { _, subjects, _ -> subjects }, { _, _, lessons -> lessons.flatten() })
+            .penalize(HardSoftScore.ONE_HARD) { _, subjects, lessons ->
+                val firstLessons = lessons.filter { it.subject == subjects.firstSubject }.sortedBy(Lesson::id)
+                val secondLessons = lessons.filter { it.subject == subjects.secondSubject }.sortedBy(Lesson::id)
+
+                firstLessons.zip(secondLessons).take(subjects.count).filter { (lesson1, lesson2) ->
+                    val between = Duration.between(
+                        lesson1.timeslot?.end,
+                        lesson2.timeslot?.start
+                    )
+                    lesson1.timeslot?.dayOfWeek == lesson2.timeslot?.dayOfWeek && !between.isNegative
+                            && between <= Duration.ofMinutes(30)
+                }.let { it.size - subjects.count }.absoluteValue
+            }.asConstraint("Paired subjects")
     }
 }

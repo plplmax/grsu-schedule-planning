@@ -11,6 +11,9 @@ import com.github.plplmax.planning.rooms.ValidatedRooms
 import com.github.plplmax.planning.subjects.PgSubjects
 import com.github.plplmax.planning.subjects.SubjectsRoute
 import com.github.plplmax.planning.subjects.ValidatedSubjects
+import com.github.plplmax.planning.subjects.paired.PairedSubjectsRoute
+import com.github.plplmax.planning.subjects.paired.PgPairedSubjects
+import com.github.plplmax.planning.subjects.paired.ValidatedPairedSubjects
 import com.github.plplmax.planning.teachers.PgTeachers
 import com.github.plplmax.planning.teachers.TeachersRoute
 import com.github.plplmax.planning.teachers.ValidatedTeachers
@@ -27,11 +30,14 @@ class RoutingPlugin(private val database: Database) : AppPlugin {
         app.routing {
             ApiRoute(
                 TimeslotsRoute(ValidatedTimeslots(PgTimeslots(database))),
-                SubjectsRoute(ValidatedSubjects(PgSubjects(database))),
+                SubjectsRoute(
+                    ValidatedSubjects(PgSubjects(database)),
+                    PairedSubjectsRoute(ValidatedPairedSubjects(PgPairedSubjects(database)))
+                ),
                 TeachersRoute(ValidatedTeachers(PgTeachers(database))),
                 RoomsRoute(ValidatedRooms(PgRooms(database))),
                 GroupsRoute(ValidatedGroups(PgGroups(database))),
-                TimetableRoute(PgLessons(database), PgTimeslots(database))
+                TimetableRoute(PgLessons(database), PgTimeslots(database), PgPairedSubjects(database))
             ).install(this)
         }
     }

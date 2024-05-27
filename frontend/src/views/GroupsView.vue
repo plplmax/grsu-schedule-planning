@@ -2,7 +2,7 @@
 import { onMounted, ref, type Ref } from 'vue'
 import groupsService from '@/groups/groups.service'
 import subjectsService from '@/subjects/subjects.service'
-import type { GroupDetail, GroupDetailUi } from '@/groups/group'
+import type { Group, GroupDetail, GroupDetailUi } from '@/groups/group'
 import type { Subject } from '@/subjects/Subject'
 import { computed } from 'vue'
 import type { Teacher, TeacherDetail } from '@/teachers/Teacher'
@@ -10,7 +10,7 @@ import type { Room } from '@/rooms/room'
 import teachersService from '@/teachers/teachers.service'
 import roomsService from '@/rooms/rooms.service'
 
-const groups = ref<GroupDetail[]>([]) as Ref<GroupDetail[]>
+const groups = ref<Group[]>([]) as Ref<Group[]>
 const subjects = ref<Subject[]>([])
 const teachersDetail = ref<TeacherDetail[]>([])
 const rooms = ref<Room[]>([])
@@ -73,7 +73,9 @@ const addGroup = () => {
   groupsService
     .add(activeGroup.value as GroupDetail)
     .then((value) => {
-      groups.value.push(value)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { lessons, ...data } = value
+      groups.value.push(data)
       closeDialog()
     })
     .catch((error) => console.error(error))
@@ -86,8 +88,10 @@ const editGroup = () => {
   groupsService
     .edit(activeGroup.value as GroupDetail)
     .then((value) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { lessons, ...data } = value
       const index = groups.value.findIndex((item) => item.id === value.id)
-      groups.value[index] = value
+      groups.value[index] = data
       closeDialog()
     })
     .catch((error) => console.error(error))
@@ -103,12 +107,17 @@ const deleteGroup = () => {
     })
     .catch((error) => console.error(error))
 }
-const startEditingGroup = (item: GroupDetail) => {
-  activeGroup.value = { ...item }
-  dialog.value = true
+const startEditingGroup = (item: Group) => {
+  groupsService
+    .findById(item.id)
+    .then((value) => {
+      activeGroup.value = { ...value }
+      dialog.value = true
+    })
+    .catch((error) => console.error(error))
 }
-const startDeletingGroup = (item: GroupDetail) => {
-  activeGroup.value = item
+const startDeletingGroup = (item: Group) => {
+  activeGroup.value = { ...item, lessons: [] }
   dialogDelete.value = true
 }
 const updateHours = (hours: number, subject: Subject, teacher?: Teacher) => {

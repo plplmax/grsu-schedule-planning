@@ -71,7 +71,7 @@ const getSubjectColor = (subject: string) => {
 
 const update = () => {
   groupsService
-    .all()
+    .allDetails()
     .then((value) => (groups.value = value))
     .catch((error) => console.error(error))
 

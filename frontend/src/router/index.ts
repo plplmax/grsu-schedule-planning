@@ -29,6 +29,11 @@ const router = createRouter({
       component: () => import('../views/SubjectsView.vue')
     },
     {
+      path: '/subjects/paired',
+      name: 'paired-subjects',
+      component: () => import('../views/PairedSubjectsView.vue')
+    },
+    {
       path: '/teachers',
       name: 'teachers',
       component: () => import('../views/TeachersView.vue')

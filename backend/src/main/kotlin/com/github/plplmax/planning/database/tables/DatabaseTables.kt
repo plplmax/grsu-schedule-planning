@@ -10,6 +10,8 @@ class DatabaseTables : Tables {
         TeachersToSubjectsTable,
         RoomsTable,
         GroupsTable,
-        LessonsTable
+        LessonsTable,
+        PairedSubjectsTable,
+        GroupsToPairedSubjectsTable
     )
 }

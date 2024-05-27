@@ -7,6 +7,7 @@ import ai.timefold.solver.core.api.domain.solution.ProblemFactCollectionProperty
 import ai.timefold.solver.core.api.domain.valuerange.ValueRangeProvider
 import ai.timefold.solver.core.api.score.buildin.hardsoft.HardSoftScore
 import com.github.plplmax.planning.lessons.Lesson
+import com.github.plplmax.planning.subjects.paired.PairedSubjects
 import com.github.plplmax.planning.timeslots.Timeslot
 
 @PlanningSolution
@@ -16,6 +17,8 @@ data class Timetable(
     val timeslots: List<Timeslot> = listOf(),
     @PlanningEntityCollectionProperty
     val lessons: List<Lesson> = listOf(),
+    @ProblemFactCollectionProperty
+    val pairedSubjects: List<PairedSubjects> = listOf(),
     @PlanningScore
     val score: HardSoftScore = HardSoftScore.ZERO
 )
