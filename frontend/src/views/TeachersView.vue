@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { Subject } from '@/subjects/Subject'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, type Ref } from 'vue'
 import teachersService from '@/teachers/teachers.service'
 import type { TeacherDetail } from '@/teachers/Teacher'
 import subjectsService from '@/subjects/subjects.service'
 
-const teachers = ref<TeacherDetail[]>([])
+const teachers = ref<TeacherDetail[]>([]) as Ref<TeacherDetail[]>
 const subjects = ref<Subject[]>([])
 const headers = [
   { title: 'Фамилия', value: 'lastname' },
@@ -21,7 +21,7 @@ const defaultTeacher: TeacherDetail = {
   lastname: '',
   subjects: []
 }
-const activeTeacher = ref<TeacherDetail>({ ...defaultTeacher })
+const activeTeacher = ref<TeacherDetail>({ ...defaultTeacher }) as Ref<TeacherDetail>
 const resetActiveTeacher = () => (activeTeacher.value = { ...defaultTeacher })
 const closeDialog = () => (dialog.value = false)
 const closeDialogDelete = () => (dialogDelete.value = false)

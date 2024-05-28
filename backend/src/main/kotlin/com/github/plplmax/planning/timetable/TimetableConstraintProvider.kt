@@ -7,6 +7,7 @@ import ai.timefold.solver.core.api.score.stream.ConstraintFactory
 import ai.timefold.solver.core.api.score.stream.ConstraintProvider
 import ai.timefold.solver.core.api.score.stream.Joiners
 import com.github.plplmax.planning.lessons.Lesson
+import com.github.plplmax.planning.subjects.SubjectDetail
 import com.github.plplmax.planning.subjects.paired.PairedSubjects
 import com.github.plplmax.planning.timeslots.Timeslot
 import java.time.Duration
@@ -25,7 +26,8 @@ class TimetableConstraintProvider : ConstraintProvider {
             subjectVarietyPerDay(constraintFactory),
             groupTimeEfficiency(constraintFactory),
             dayComplexity(constraintFactory),
-            pairedSubjects(constraintFactory)
+            pairedSubjects(constraintFactory),
+            disallowedSubjectsTimeslots(constraintFactory)
         )
     }
 
@@ -208,5 +210,13 @@ class TimetableConstraintProvider : ConstraintProvider {
                             && between <= Duration.ofMinutes(30)
                 }.let { it.size - subjects.count }.absoluteValue
             }.asConstraint("Paired subjects")
+    }
+
+    private fun disallowedSubjectsTimeslots(constraintFactory: ConstraintFactory): Constraint {
+        return constraintFactory.forEach(Lesson::class.java)
+            .join(SubjectDetail::class.java, Joiners.equal({ lesson -> lesson.subject.id }, SubjectDetail::id))
+            .filter { lesson, subject -> subject.disallowedTimeslots.contains(lesson.timeslot) }
+            .penalize(HardSoftScore.ONE_HARD)
+            .asConstraint("Disallowed subjects timeslots")
     }
 }

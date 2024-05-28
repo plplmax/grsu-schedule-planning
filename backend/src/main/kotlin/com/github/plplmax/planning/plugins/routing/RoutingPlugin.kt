@@ -37,7 +37,12 @@ class RoutingPlugin(private val database: Database) : AppPlugin {
                 TeachersRoute(ValidatedTeachers(PgTeachers(database))),
                 RoomsRoute(ValidatedRooms(PgRooms(database))),
                 GroupsRoute(ValidatedGroups(PgGroups(database))),
-                TimetableRoute(PgLessons(database), PgTimeslots(database), PgPairedSubjects(database))
+                TimetableRoute(
+                    PgLessons(database),
+                    PgTimeslots(database),
+                    PgPairedSubjects(database),
+                    PgSubjects(database)
+                )
             ).install(this)
         }
     }

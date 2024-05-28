@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { Subject } from '@/subjects/Subject'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, type Ref } from 'vue'
 import pairedSubjectsService from '@/subjects/paired-subjects.service'
 import type { PairedSubjects, PairedSubjectsUi } from '@/subjects/PairedSubjects'
 import type { Group } from '@/groups/group'
 import subjectsService from '@/subjects/subjects.service'
 import groupsService from '@/groups/groups.service'
 
-const pairedSubjects = ref<PairedSubjects[]>([])
+const pairedSubjects = ref<PairedSubjects[]>([]) as Ref<PairedSubjects[]>
 const subjects = ref<Subject[]>([])
 const groups = ref<Group[]>([])
 const countList = [...Array(6).keys()].splice(1)

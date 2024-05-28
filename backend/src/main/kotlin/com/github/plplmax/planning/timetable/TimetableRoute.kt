@@ -8,6 +8,7 @@ import com.github.plplmax.planning.lessons.Lesson
 import com.github.plplmax.planning.lessons.Lessons
 import com.github.plplmax.planning.plugins.routing.AppRoute
 import com.github.plplmax.planning.plugins.routing.AppRouteBasic
+import com.github.plplmax.planning.subjects.Subjects
 import com.github.plplmax.planning.subjects.paired.PairedSubjectsCollection
 import com.github.plplmax.planning.timeslots.Timeslots
 import io.ktor.http.*
@@ -23,7 +24,8 @@ import java.time.Duration
 class TimetableRoute(
     private val lessons: Lessons,
     private val timeslots: Timeslots,
-    private val subjects: PairedSubjectsCollection,
+    private val pairedSubjects: PairedSubjectsCollection,
+    private val subjects: Subjects,
     private val solver: SolverManager<Timetable, Int> = SolverManager.create(
         SolverConfig().withSolutionClass(Timetable::class.java).withEntityClasses(Lesson::class.java)
             .withConstraintProviderClass(TimetableConstraintProvider::class.java)
@@ -41,7 +43,8 @@ class TimetableRoute(
                     Timetable(
                         timeslots = timeslots.all(),
                         lessons = lessons.all(),
-                        pairedSubjects = subjects.all(),
+                        pairedSubjects = pairedSubjects.all(),
+                        subjects = subjects.all(),
                         score = HardSoftScore.ZERO
                     )
                 ) { timetable ->
@@ -63,7 +66,8 @@ class TimetableRoute(
                     Timetable(
                         timeslots = timeslots.all(),
                         lessons = lessons.all(),
-                        pairedSubjects = subjects.all(),
+                        pairedSubjects = pairedSubjects.all(),
+                        subjects = subjects.all(),
                         score = HardSoftScore.ZERO
                     )
                 ).also { call.respond(it.toString()) }

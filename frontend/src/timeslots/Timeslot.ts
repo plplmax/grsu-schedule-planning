@@ -16,35 +16,43 @@ export interface NewTimeslot {
 export interface DayOfWeek {
   id: number
   label: string
+  shortLabel: string
 }
 
 export const dayOfWeeks: DayOfWeek[] = [
   {
     id: 1,
-    label: 'Понедельник'
+    label: 'Понедельник',
+    shortLabel: 'Пн'
   },
   {
     id: 2,
-    label: 'Вторник'
+    label: 'Вторник',
+    shortLabel: 'Вт'
   },
   {
     id: 3,
-    label: 'Среда'
+    label: 'Среда',
+    shortLabel: 'Ср'
   },
   {
     id: 4,
-    label: 'Четверг'
+    label: 'Четверг',
+    shortLabel: 'Чт'
   },
   {
     id: 5,
-    label: 'Пятница'
+    label: 'Пятница',
+    shortLabel: 'Пт'
   },
   {
     id: 6,
-    label: 'Суббота'
+    label: 'Суббота',
+    shortLabel: 'Сб'
   },
   {
     id: 7,
-    label: 'Воскресенье'
+    label: 'Воскресенье',
+    shortLabel: 'Вс'
   }
 ]

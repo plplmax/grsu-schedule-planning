@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import type { Subject } from '@/subjects/Subject'
-import { onMounted, ref } from 'vue'
-import service from '@/subjects/subjects.service'
+import { computed, onMounted, ref, type Ref } from 'vue'
+import subjectsService from '@/subjects/subjects.service'
+import { dayOfWeeks, type Timeslot } from '@/timeslots/Timeslot'
+import timeslotsService from '@/timeslots/timeslots.service'
 
-const subjects = ref<Subject[]>([])
+const subjects = ref<Subject[]>([]) as Ref<Subject[]>
+const timeslots = ref<Timeslot[]>([])
 const headers = [
   { title: 'Название', value: 'name' },
   { title: 'Действия', value: 'actions' }
@@ -14,14 +17,15 @@ const dialogDelete = ref(false)
 const defaultSubject: Subject = {
   id: 0,
   name: '',
-  complexity: 0
+  complexity: 0,
+  disallowedTimeslots: []
 }
-const activeSubject = ref<Subject>({ ...defaultSubject })
+const activeSubject = ref<Subject>({ ...defaultSubject }) as Ref<Subject>
 const resetActiveSubject = () => (activeSubject.value = { ...defaultSubject })
 const closeDialog = () => (dialog.value = false)
 const closeDialogDelete = () => (dialogDelete.value = false)
 const addSubject = () =>
-  service
+  subjectsService
     .add(activeSubject.value)
     .then((value) => {
       subjects.value.push(value)
@@ -29,7 +33,7 @@ const addSubject = () =>
     })
     .catch((error) => console.error(error))
 const editSubject = () =>
-  service
+  subjectsService
     .edit(activeSubject.value)
     .then((value) => {
       const index = subjects.value.findIndex((item) => item.id === value.id)
@@ -39,7 +43,7 @@ const editSubject = () =>
     .catch((error) => console.error(error))
 const deleteSubject = () => {
   const id = activeSubject.value.id
-  service
+  subjectsService
     .remove(id)
     .then(() => {
       const index = subjects.value.findIndex((item) => item.id === id)
@@ -56,13 +60,28 @@ const startDeletingSubject = (item: Subject) => {
   activeSubject.value = item
   dialogDelete.value = true
 }
-
-onMounted(() =>
-  service
+const selectedAllTimeslots = computed(
+  () => activeSubject.value.disallowedTimeslots.length === timeslots.value.length
+)
+const selectedSomeTimeslots = computed(() => activeSubject.value.disallowedTimeslots.length > 0)
+const toggleSelectAll = () => {
+  if (selectedAllTimeslots.value) {
+    activeSubject.value.disallowedTimeslots = []
+  } else {
+    activeSubject.value.disallowedTimeslots = timeslots.value as Timeslot[]
+  }
+}
+onMounted(() => {
+  subjectsService
     .all()
     .then((value) => (subjects.value = value))
     .catch((error) => console.error(error))
-)
+
+  timeslotsService
+    .all()
+    .then((value) => (timeslots.value = value))
+    .catch((error) => console.error(error))
+})
 </script>
 <template>
   <v-data-table :items="subjects" :headers="headers" :sort-by="[{ key: 'name', order: 'asc' }]">
@@ -95,6 +114,41 @@ onMounted(() =>
                 :items="complexityPoints"
                 v-model="activeSubject.complexity"
               ></v-select>
+              <v-select
+                label="Запрещённое время"
+                :items="timeslots"
+                :item-title="
+                  (item) =>
+                    `${dayOfWeeks.find((value) => value.id === item.dayOfWeek)!.shortLabel} ${
+                      item.start
+                    } - ${item.end}`
+                "
+                v-model="activeSubject.disallowedTimeslots"
+                return-object
+                multiple
+              >
+                <template v-slot:prepend-item>
+                  <v-list-item title="Выбрать всё" @click="toggleSelectAll">
+                    <template v-slot:prepend>
+                      <v-checkbox-btn
+                        :color="selectedSomeTimeslots ? 'indigo-darken-4' : undefined"
+                        :indeterminate="selectedSomeTimeslots && !selectedAllTimeslots"
+                        :model-value="selectedAllTimeslots"
+                      ></v-checkbox-btn>
+                    </template>
+                  </v-list-item>
+                  <v-divider class="mt-2"></v-divider>
+                </template>
+
+                <template v-slot:selection="{ item, index }">
+                  <v-chip v-if="index < 2">
+                    <span>{{ item.title }}</span>
+                  </v-chip>
+                  <span v-if="index === 2" class="text-grey text-caption align-self-center">
+                    (+{{ activeSubject.disallowedTimeslots.length - 2 }} других)
+                  </span>
+                </template>
+              </v-select>
             </v-card-text>
 
             <v-card-actions>

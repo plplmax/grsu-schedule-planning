@@ -1,14 +1,14 @@
 package com.github.plplmax.planning.subjects
 
 class ValidatedSubjects(private val origin: Subjects) : Subjects by origin {
-    override suspend fun insert(subject: NewSubject): Subject {
+    override suspend fun insert(subject: NewSubject): SubjectDetail {
         val processedSubject = subject.copy(name = processName(subject.name))
         validateName(processedSubject.name)
         validateComplexity(subject.complexity)
         return origin.insert(processedSubject)
     }
 
-    override suspend fun update(subject: Subject): Subject {
+    override suspend fun update(subject: SubjectDetail): SubjectDetail {
         val processedSubject = subject.copy(name = processName(subject.name))
         validateName(processedSubject.name)
         validateComplexity(subject.complexity)
