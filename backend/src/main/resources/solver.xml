@@ -1,0 +1,13 @@
+<solver xmlns="https://timefold.ai/xsd/solver" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="https://timefold.ai/xsd/solver https://timefold.ai/xsd/solver/solver.xsd">
+    <solutionClass>com.github.plplmax.planning.timetable.Timetable</solutionClass>
+    <entityClass>com.github.plplmax.planning.lessons.Lesson</entityClass>
+
+    <scoreDirectorFactory>
+        <constraintProviderClass>com.github.plplmax.planning.timetable.TimetableConstraintProvider</constraintProviderClass>
+    </scoreDirectorFactory>
+
+    <termination>
+        <unimprovedSecondsSpentLimit>30</unimprovedSecondsSpentLimit>
+    </termination>
+</solver>

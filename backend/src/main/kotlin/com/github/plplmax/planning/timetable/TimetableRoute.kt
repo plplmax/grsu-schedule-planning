@@ -4,7 +4,6 @@ import ai.timefold.solver.core.api.score.buildin.hardsoft.HardSoftScore
 import ai.timefold.solver.core.api.solver.SolutionManager
 import ai.timefold.solver.core.api.solver.SolverManager
 import ai.timefold.solver.core.config.solver.SolverConfig
-import com.github.plplmax.planning.lessons.Lesson
 import com.github.plplmax.planning.lessons.Lessons
 import com.github.plplmax.planning.plugins.routing.AppRoute
 import com.github.plplmax.planning.plugins.routing.AppRouteBasic
@@ -19,18 +18,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.future.asCompletableFuture
 import kotlinx.coroutines.launch
-import java.time.Duration
 
 class TimetableRoute(
     private val lessons: Lessons,
     private val timeslots: Timeslots,
     private val pairedSubjects: PairedSubjectsCollection,
     private val subjects: Subjects,
-    private val solver: SolverManager<Timetable, Int> = SolverManager.create(
-        SolverConfig().withSolutionClass(Timetable::class.java).withEntityClasses(Lesson::class.java)
-            .withConstraintProviderClass(TimetableConstraintProvider::class.java)
-            .withTerminationSpentLimit(Duration.ofSeconds(15))
-    ),
+    private val solver: SolverManager<Timetable, Int> = SolverManager.create(config),
     vararg children: AppRoute
 ) : AppRouteBasic(*children) {
     private val scope = CoroutineScope(Dispatchers.IO)
@@ -77,5 +71,6 @@ class TimetableRoute(
 
     companion object {
         private const val PROBLEM_ID = 1
+        private val config = SolverConfig.createFromXmlResource("solver.xml")
     }
 }
