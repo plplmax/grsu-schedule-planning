@@ -23,6 +23,7 @@ class PgRooms(
         return newSuspendedTransaction(dispatcher, database) {
             RoomsTable.insert {
                 it[name] = room.name
+                it[capacity] = room.capacity
             }.resultedValues?.firstOrNull()?.let(::toRoom) ?: error("There is no result after inserting a new room")
         }
     }
@@ -31,6 +32,7 @@ class PgRooms(
         return newSuspendedTransaction(dispatcher, database) {
             RoomsTable.update({RoomsTable.id eq room.id}) {
                 it[name] = room.name
+                it[capacity] = room.capacity
             }.also { check(it > 0) {"There are no affected rows after updating room with id = ${room.id}"} }
             RoomsTable.select { RoomsTable.id eq room.id }.map(::toRoom).firstOrNull() ?: error("There is no room with id = ${room.id} after updating")
         }
@@ -48,7 +50,8 @@ class PgRooms(
     companion object {
         fun toRoom(row: ResultRow): Room = Room(
             id = row[RoomsTable.id].value,
-            name = row[RoomsTable.name]
+            name = row[RoomsTable.name],
+            capacity = row[RoomsTable.capacity]
         )
     }
 }

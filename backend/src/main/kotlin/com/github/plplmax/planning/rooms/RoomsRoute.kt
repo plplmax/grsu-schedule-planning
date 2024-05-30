@@ -22,8 +22,8 @@ class RoomsRoute(private val rooms: Rooms, vararg children: AppRoute) : AppRoute
                 call.parameters["id"]
                     ?.toIntOrNull()
                     ?.let {
-                        val subject = call.receive<NewRoom>()
-                        Room(id = it, name = subject.name)
+                        val room = call.receive<NewRoom>()
+                        Room(id = it, name = room.name, capacity = room.capacity)
                     }
                     ?.let { rooms.update(it) }
                     ?.let { call.respond(it) }

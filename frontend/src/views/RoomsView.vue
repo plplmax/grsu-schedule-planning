@@ -4,15 +4,18 @@ import service from '@/rooms/rooms.service'
 import type { Room } from '@/rooms/room'
 
 const rooms = ref<Room[]>([])
+const capacities = [...Array(6).keys()].splice(1)
 const headers = [
   { title: 'Название', value: 'name' },
+  { title: 'Вместимость', value: 'capacity' },
   { title: 'Действия', value: 'actions' }
 ]
 const dialog = ref(false)
 const dialogDelete = ref(false)
 const defaultRoom: Room = {
   id: 0,
-  name: ''
+  name: '',
+  capacity: 1
 }
 const activeRoom = ref<Room>({ ...defaultRoom })
 const resetActiveRoom = () => (activeRoom.value = { ...defaultRoom })
@@ -88,6 +91,11 @@ onMounted(() =>
                 :model-value="activeRoom.name"
                 @update:model-value="(value) => (activeRoom.name = value)"
               ></v-text-field>
+              <v-select
+                label="Вместимость классов"
+                :items="capacities"
+                v-model="activeRoom.capacity"
+              ></v-select>
             </v-card-text>
 
             <v-card-actions>

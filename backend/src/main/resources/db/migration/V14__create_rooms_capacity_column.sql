@@ -1,0 +1,2 @@
+ALTER TABLE rooms
+ADD capacity INT DEFAULT 1 NOT NULL;

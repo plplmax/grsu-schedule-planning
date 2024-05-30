@@ -19,7 +19,7 @@ import kotlin.math.roundToInt
 class TimetableConstraintProvider : ConstraintProvider {
     override fun defineConstraints(constraintFactory: ConstraintFactory): Array<Constraint>? {
         return arrayOf(
-            roomConflict(constraintFactory),
+            roomCapacity(constraintFactory),
             teacherConflict(constraintFactory),
             groupConflict(constraintFactory),
             evenlyDistributedLessonsPerDay(constraintFactory),
@@ -35,15 +35,12 @@ class TimetableConstraintProvider : ConstraintProvider {
         )
     }
 
-    private fun roomConflict(constraintFactory: ConstraintFactory): Constraint {
-        return constraintFactory
-            .forEachUniquePair(
-                Lesson::class.java,
-                Joiners.equal(Lesson::timeslot),
-                Joiners.equal(Lesson::room)
-            )
+    private fun roomCapacity(constraintFactory: ConstraintFactory): Constraint {
+        return constraintFactory.forEach(Lesson::class.java)
+            .groupBy(Lesson::room, Lesson::timeslot, count())
+            .filter { room, _, count -> count > room.capacity }
             .penalize(HardSoftScore.ONE_HARD)
-            .asConstraint("Room conflict");
+            .asConstraint("Room capacity")
     }
 
     private fun teacherConflict(constraintFactory: ConstraintFactory): Constraint {
