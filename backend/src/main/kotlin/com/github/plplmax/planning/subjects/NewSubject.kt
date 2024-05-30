@@ -9,5 +9,6 @@ data class NewSubject(
     val complexity: Int,
     val disallowedTimeslots: List<Timeslot>,
     val minDaysBetween: Int,
-    val minDaysStrict: Boolean
+    val minDaysStrict: Boolean,
+    val onceFirstOrLastTimeslot: Boolean
 )

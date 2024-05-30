@@ -8,5 +8,6 @@ data class Subject(
     val name: String,
     val complexity: Int,
     val minDaysBetween: Int,
-    val minDaysStrict: Boolean
+    val minDaysStrict: Boolean,
+    val onceFirstOrLastTimeslot: Boolean
 )

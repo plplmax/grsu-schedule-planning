@@ -21,7 +21,8 @@ const defaultSubject: Subject = {
   complexity: 0,
   disallowedTimeslots: [],
   minDaysBetween: 1,
-  minDaysStrict: false
+  minDaysStrict: false,
+  onceFirstOrLastTimeslot: false
 }
 const activeSubject = ref<Subject>({ ...defaultSubject }) as Ref<Subject>
 const resetActiveSubject = () => (activeSubject.value = { ...defaultSubject })
@@ -162,6 +163,10 @@ onMounted(() => {
               <v-checkbox
                 :label="`Обязательно минимум ${activeSubject.minDaysBetween} дней между уроками`"
                 v-model="activeSubject.minDaysStrict"
+              ></v-checkbox>
+              <v-checkbox
+                label="Обязательно минимум один раз или первым уроком, или последним"
+                v-model="activeSubject.onceFirstOrLastTimeslot"
               ></v-checkbox>
             </v-card-text>
 

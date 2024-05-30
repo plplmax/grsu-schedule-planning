@@ -7,4 +7,5 @@ export interface Subject {
   disallowedTimeslots: Timeslot[]
   minDaysBetween: number
   minDaysStrict: boolean
+  onceFirstOrLastTimeslot: boolean
 }

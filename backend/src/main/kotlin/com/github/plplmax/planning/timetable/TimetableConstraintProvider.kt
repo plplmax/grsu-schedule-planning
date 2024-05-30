@@ -30,7 +30,8 @@ class TimetableConstraintProvider : ConstraintProvider {
             pairedSubjects(constraintFactory),
             disallowedSubjectsTimeslots(constraintFactory),
             minDaysBetweenLessonsHard(constraintFactory),
-            minDaysBetweenLessonsSoft(constraintFactory)
+            minDaysBetweenLessonsSoft(constraintFactory),
+            onceFirstOrLastTimeslot(constraintFactory)
         )
     }
 
@@ -257,5 +258,31 @@ class TimetableConstraintProvider : ConstraintProvider {
                         if (diff >= subject.minDaysBetween) diff - subject.minDaysBetween else -(subject.minDaysBetween - diff)
                     }
             }.asConstraint("Min days between lessons [soft]")
+    }
+
+    private fun onceFirstOrLastTimeslot(constraintFactory: ConstraintFactory): Constraint {
+        return constraintFactory.forEach(Lesson::class.java)
+            .groupBy(
+                Lesson::group,
+                { lesson -> lesson.timeslot!!.dayOfWeek },
+                collectAndThen(toList { lesson -> lesson.timeslot!! }) { timeslots ->
+                    timeslots.minBy(Timeslot::start) to timeslots.maxBy(Timeslot::start)
+                })
+            .groupBy({ group, _, _ -> group }, toList { _, _, timeslots -> timeslots })
+            .map({ group, _ -> group }, { _, timeslots -> timeslots.flatMap { it.toList() } })
+            .join(SubjectDetail::class.java, Joiners.filtering { _, _, subject -> subject.onceFirstOrLastTimeslot })
+            .join(
+                Lesson::class.java,
+                Joiners.equal({ group, _, _ -> group }, Lesson::group),
+                Joiners.equal({ _, _, subject -> subject.id }, { lesson -> lesson.subject.id })
+            )
+            .groupBy(
+                { group, _, _, _ -> group },
+                { _, timeslots, _, _ -> timeslots },
+                { _, _, subject, _ -> subject },
+                toList { _, _, _, lesson -> lesson.timeslot!! })
+            .filter { _, firstOrLastTimeslots, _, timeslots -> !timeslots.any { firstOrLastTimeslots.contains(it) } }
+            .penalize(HardSoftScore.ONE_HARD)
+            .asConstraint("Once first or last timeslot")
     }
 }

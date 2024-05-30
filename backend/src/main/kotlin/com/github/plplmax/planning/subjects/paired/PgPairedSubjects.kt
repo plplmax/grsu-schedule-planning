@@ -152,14 +152,16 @@ class PgPairedSubjects(
                             row[firstSubject[SubjectsTable.name]],
                             row[firstSubject[SubjectsTable.complexity]],
                             row[firstSubject[SubjectsTable.minDaysBetween]],
-                            row[firstSubject[SubjectsTable.minDaysStrict]]
+                            row[firstSubject[SubjectsTable.minDaysStrict]],
+                            row[firstSubject[SubjectsTable.onceFirstOrLastTimeslot]]
                         ),
                         secondSubject = Subject(
                             row[secondSubject[SubjectsTable.id]].value,
                             row[secondSubject[SubjectsTable.name]],
                             row[secondSubject[SubjectsTable.complexity]],
                             row[secondSubject[SubjectsTable.minDaysBetween]],
-                            row[secondSubject[SubjectsTable.minDaysStrict]]
+                            row[secondSubject[SubjectsTable.minDaysStrict]],
+                            row[secondSubject[SubjectsTable.onceFirstOrLastTimeslot]]
                         ),
                         groups = listOf(),
                         count = row[PairedSubjectsTable.count]

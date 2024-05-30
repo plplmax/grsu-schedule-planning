@@ -7,4 +7,5 @@ object SubjectsTable : IntIdTable() {
     val complexity = integer("complexity").default(0)
     val minDaysBetween = integer("minDaysBetween").default(1)
     val minDaysStrict = bool("minDaysStrict").default(false)
+    val onceFirstOrLastTimeslot = bool("onceFirstOrLastTimeslot").default(false)
 }
