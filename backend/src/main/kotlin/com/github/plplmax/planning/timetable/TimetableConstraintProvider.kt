@@ -86,7 +86,9 @@ class TimetableConstraintProvider : ConstraintProvider {
             .groupBy({ _, group, _ -> group }, toMap({ dayOfWeek, _, _ -> dayOfWeek }, { _, _, count -> count }))
             .map({ group, _ -> group }, { _, dayOfWeeks -> dayOfWeeks.mapValues { entry -> entry.value.first() } })
             .penalize(HardSoftScore.ONE_SOFT) { _, dayOfWeeks ->
-                with(dayOfWeeks) { -values.sumOf { it * it } + (values.sumOf { it } * values.sumOf { it } * 1.0 / size).roundToInt() }.absoluteValue
+                with(dayOfWeeks) {
+                    -values.sumOf { it * it } + values.sumOf { it } * values.sumOf { it } * 1.0 / size
+                }.let { if (it < 0) it + 1 else it }.roundToInt().absoluteValue
             }
             .asConstraint("Evenly distributed lessons per day")
     }
@@ -172,7 +174,9 @@ class TimetableConstraintProvider : ConstraintProvider {
             ).groupBy({ group, _, _ -> group }, toMap({ _, dayOfWeek, _ -> dayOfWeek }, { _, _, count -> count }))
             .map({ group, _ -> group }, { _, dayOfWeeks -> dayOfWeeks.mapValues { entry -> entry.value.first() } })
             .penalize(HardSoftScore.ONE_SOFT) { _, dayOfWeeks ->
-                with(dayOfWeeks) { -values.sumOf { it * it } + (values.sumOf { it } * values.sumOf { it } * 1.0 / size).roundToInt() }.absoluteValue
+                with(dayOfWeeks) {
+                    -values.sumOf { it * it } + values.sumOf { it } * values.sumOf { it } * 1.0 / size
+                }.let { if (it < 0) it + 1 else it }.roundToInt().absoluteValue
             }.asConstraint("Day complexity")
     }
 
