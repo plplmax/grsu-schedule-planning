@@ -205,8 +205,12 @@ class TimetableConstraintProvider : ConstraintProvider {
             .groupBy({ _, group, _ -> group }, { subjects, _, _ -> subjects }, toList { _, _, lessons -> lessons })
             .map({ group, _, _ -> group }, { _, subjects, _ -> subjects }, { _, _, lessons -> lessons.flatten() })
             .penalize(HardSoftScore.ONE_HARD) { _, subjects, lessons ->
-                val firstLessons = lessons.filter { it.subject == subjects.firstSubject }.sortedBy(Lesson::id)
-                val secondLessons = lessons.filter { it.subject == subjects.secondSubject }.sortedBy(Lesson::id)
+                val firstLessons = lessons.filter { it.subject == subjects.firstSubject }.sortedWith(
+                    compareBy({ it.timeslot!!.dayOfWeek }, { it.timeslot!!.start })
+                )
+                val secondLessons = lessons.filter { it.subject == subjects.secondSubject }.sortedWith(
+                    compareBy({ it.timeslot!!.dayOfWeek }, { it.timeslot!!.start })
+                )
 
                 firstLessons.zip(secondLessons).take(subjects.count).filter { (lesson1, lesson2) ->
                     val between = Duration.between(
