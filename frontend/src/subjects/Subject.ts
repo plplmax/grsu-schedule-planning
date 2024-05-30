@@ -5,4 +5,6 @@ export interface Subject {
   name: string
   complexity: number
   disallowedTimeslots: Timeslot[]
+  minDaysBetween: number
+  minDaysStrict: boolean
 }

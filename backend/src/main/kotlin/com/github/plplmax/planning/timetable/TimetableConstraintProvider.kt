@@ -10,6 +10,7 @@ import com.github.plplmax.planning.lessons.Lesson
 import com.github.plplmax.planning.subjects.SubjectDetail
 import com.github.plplmax.planning.subjects.paired.PairedSubjects
 import com.github.plplmax.planning.timeslots.Timeslot
+import java.time.DayOfWeek
 import java.time.Duration
 import java.util.function.Function
 import kotlin.math.absoluteValue
@@ -27,7 +28,9 @@ class TimetableConstraintProvider : ConstraintProvider {
             groupTimeEfficiency(constraintFactory),
             dayComplexity(constraintFactory),
             pairedSubjects(constraintFactory),
-            disallowedSubjectsTimeslots(constraintFactory)
+            disallowedSubjectsTimeslots(constraintFactory),
+            minDaysBetweenLessonsHard(constraintFactory),
+            minDaysBetweenLessonsSoft(constraintFactory)
         )
     }
 
@@ -218,5 +221,33 @@ class TimetableConstraintProvider : ConstraintProvider {
             .filter { lesson, subject -> subject.disallowedTimeslots.contains(lesson.timeslot) }
             .penalize(HardSoftScore.ONE_HARD)
             .asConstraint("Disallowed subjects timeslots")
+    }
+
+    private fun minDaysBetweenLessonsHard(constraintFactory: ConstraintFactory): Constraint {
+        return constraintFactory.forEach(Lesson::class.java)
+            .filter { it.subject.minDaysStrict }
+            .groupBy(Lesson::group, Lesson::subject, toList { lesson -> lesson.timeslot!!.dayOfWeek })
+            .penalize(HardSoftScore.ONE_HARD) { _, subject, dayOfWeeks ->
+                dayOfWeeks.sortedBy(DayOfWeek::getValue)
+                    .zipWithNext()
+                    .sumOf { (first, second) ->
+                        val diff = second.value - first.value
+                        if (diff >= subject.minDaysBetween) 0 else subject.minDaysBetween - diff
+                    }
+            }.asConstraint("Min days between lessons [hard]")
+    }
+
+    private fun minDaysBetweenLessonsSoft(constraintFactory: ConstraintFactory): Constraint {
+        return constraintFactory.forEach(Lesson::class.java)
+            .filter { !it.subject.minDaysStrict }
+            .groupBy(Lesson::group, Lesson::subject, toList { lesson -> lesson.timeslot!!.dayOfWeek })
+            .impact(HardSoftScore.ONE_SOFT) { _, subject, dayOfWeeks ->
+                dayOfWeeks.sortedBy(DayOfWeek::getValue)
+                    .zipWithNext()
+                    .sumOf { (first, second) ->
+                        val diff = second.value - first.value
+                        if (diff >= subject.minDaysBetween) diff - subject.minDaysBetween else -(subject.minDaysBetween - diff)
+                    }
+            }.asConstraint("Min days between lessons [soft]")
     }
 }

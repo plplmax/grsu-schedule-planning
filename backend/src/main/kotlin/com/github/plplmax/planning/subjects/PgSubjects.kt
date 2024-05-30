@@ -36,6 +36,8 @@ class PgSubjects(
             val id = SubjectsTable.insertAndGetId {
                 it[name] = subject.name
                 it[complexity] = subject.complexity
+                it[minDaysBetween] = subject.minDaysBetween
+                it[minDaysStrict] = subject.minDaysStrict
             }
 
             TimeslotsToSubjectsTable.batchInsert(subject.disallowedTimeslots) {
@@ -61,6 +63,8 @@ class PgSubjects(
             SubjectsTable.update({ SubjectsTable.id eq subject.id }) {
                 it[name] = subject.name
                 it[complexity] = subject.complexity
+                it[minDaysBetween] = subject.minDaysBetween
+                it[minDaysStrict] = subject.minDaysStrict
             }.also { check(it > 0) { "There are no affected rows after updating subject with id = ${subject.id}" } }
 
             val timeslots = TimeslotsToSubjectsTable.innerJoin(TimeslotsTable)
@@ -105,7 +109,9 @@ class PgSubjects(
         fun toSubject(row: ResultRow): Subject = Subject(
             id = row[SubjectsTable.id].value,
             name = row[SubjectsTable.name],
-            complexity = row[SubjectsTable.complexity]
+            complexity = row[SubjectsTable.complexity],
+            minDaysBetween = row[SubjectsTable.minDaysBetween],
+            minDaysStrict = row[SubjectsTable.minDaysStrict]
         )
 
         fun toSubjectDetails(query: Query): List<SubjectDetail> {
@@ -122,7 +128,9 @@ class PgSubjects(
                     id = it.key.id,
                     name = it.key.name,
                     complexity = it.key.complexity,
-                    disallowedTimeslots = it.value
+                    disallowedTimeslots = it.value,
+                    minDaysBetween = it.key.minDaysBetween,
+                    minDaysStrict = it.key.minDaysStrict
                 )
             }
         }

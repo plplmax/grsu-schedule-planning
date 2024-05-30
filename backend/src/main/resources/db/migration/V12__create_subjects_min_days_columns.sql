@@ -1,0 +1,3 @@
+ALTER TABLE subjects
+ADD "minDaysBetween" INT DEFAULT 1 NOT NULL,
+ADD "minDaysStrict" BOOLEAN DEFAULT FALSE NOT NULL;

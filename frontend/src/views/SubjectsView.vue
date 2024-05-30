@@ -12,13 +12,16 @@ const headers = [
   { title: 'Действия', value: 'actions' }
 ]
 const complexityPoints = [...Array(13).keys()]
+const minDaysBetween = [...Array(5).keys()].splice(1)
 const dialog = ref(false)
 const dialogDelete = ref(false)
 const defaultSubject: Subject = {
   id: 0,
   name: '',
   complexity: 0,
-  disallowedTimeslots: []
+  disallowedTimeslots: [],
+  minDaysBetween: 1,
+  minDaysStrict: false
 }
 const activeSubject = ref<Subject>({ ...defaultSubject }) as Ref<Subject>
 const resetActiveSubject = () => (activeSubject.value = { ...defaultSubject })
@@ -149,6 +152,17 @@ onMounted(() => {
                   </span>
                 </template>
               </v-select>
+              <v-select
+                label="Минимальное количество дней между уроками"
+                :items="minDaysBetween"
+                v-model="activeSubject.minDaysBetween"
+                hint="1 - пн, вт, ср, чт, пт; 2 - пн, ср, пт; 3 - ..."
+                persistent-hint
+              ></v-select>
+              <v-checkbox
+                :label="`Обязательно минимум ${activeSubject.minDaysBetween} дней между уроками`"
+                v-model="activeSubject.minDaysStrict"
+              ></v-checkbox>
             </v-card-text>
 
             <v-card-actions>

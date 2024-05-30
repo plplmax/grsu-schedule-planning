@@ -27,7 +27,9 @@ class SubjectsRoute(private val subjects: Subjects, vararg children: AppRoute) :
                             id = it,
                             name = subject.name,
                             complexity = subject.complexity,
-                            disallowedTimeslots = subject.disallowedTimeslots
+                            disallowedTimeslots = subject.disallowedTimeslots,
+                            minDaysBetween = subject.minDaysBetween,
+                            minDaysStrict = subject.minDaysStrict
                         )
                     }
                     ?.let { subjects.update(it) }

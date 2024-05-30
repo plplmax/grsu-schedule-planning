@@ -5,6 +5,7 @@ class ValidatedSubjects(private val origin: Subjects) : Subjects by origin {
         val processedSubject = subject.copy(name = processName(subject.name))
         validateName(processedSubject.name)
         validateComplexity(subject.complexity)
+        validateMinDays(subject.minDaysBetween)
         return origin.insert(processedSubject)
     }
 
@@ -12,7 +13,12 @@ class ValidatedSubjects(private val origin: Subjects) : Subjects by origin {
         val processedSubject = subject.copy(name = processName(subject.name))
         validateName(processedSubject.name)
         validateComplexity(subject.complexity)
+        validateMinDays(subject.minDaysBetween)
         return origin.update(processedSubject)
+    }
+
+    private fun validateMinDays(days: Int) {
+        check(days in 1..4) {"Min days between should be from 1 to 4"}
     }
 
     private fun processName(name: String): String {
