@@ -129,8 +129,35 @@ class TimetableConstraintProvider : ConstraintProvider {
 
     private fun subjectVarietyPerDay(constraintFactory: ConstraintFactory): Constraint {
         return constraintFactory.forEach(Lesson::class.java)
-            .groupBy(Lesson::group, { it.timeslot?.dayOfWeek }, toList())
-            .penalize(HardSoftScore.ONE_HARD) { _, _, lessons -> lessons.size - lessons.distinctBy { it.subject to it.subgroup }.size }
+            .groupBy({ it.group to it.subgroup }, Lesson::subject, { it.timeslot!!.dayOfWeek }, count())
+            .concat(
+                constraintFactory.forEach(Lesson::class.java)
+                    .groupBy({ it.group to it.subgroup }, Lesson::subject)
+                    .join(
+                        constraintFactory.forEach(Timeslot::class.java)
+                            .groupBy(Timeslot::dayOfWeek)
+                    ).ifNotExists(
+                        Lesson::class.java,
+                        Joiners.equal(
+                            { groupToSubgroup, _, _ -> groupToSubgroup },
+                            { lesson -> lesson.group to lesson.subgroup }),
+                        Joiners.equal({ _, subject, _ -> subject }, Lesson::subject),
+                        Joiners.equal({ _, _, dayOfWeek -> dayOfWeek }, { lesson -> lesson.timeslot!!.dayOfWeek })
+                    ).expand { _, _, _ -> 0 }
+            ).groupBy(
+                { groupToSubgroup, _, _, _ -> groupToSubgroup },
+                { _, subject, _, _ -> subject },
+                collectAndThen(
+                    toMap({ _, _, dayOfWeek, _ -> dayOfWeek }, { _, _, _, count -> count })
+                ) { days -> days.mapValues { it.value.first() } }
+            ).expand { _, _, daysOfWeek ->
+                val squaredSum = daysOfWeek.values.sumOf { it * it }
+                val sum = daysOfWeek.values.sumOf { it }
+                (-squaredSum + sum * sum * 1.0 / daysOfWeek.size).let {
+                    if (it < 0) it + 1 else it
+                }.roundToInt().absoluteValue
+            }.filter { _, _, _, penalty -> penalty > 0 }
+            .penalize(HardSoftScore.ONE_HARD) { _, _, _, penalty -> penalty }
             .asConstraint("Subject variety per day")
     }
 
