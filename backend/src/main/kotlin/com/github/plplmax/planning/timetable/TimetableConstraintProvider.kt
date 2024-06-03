@@ -308,9 +308,19 @@ class TimetableConstraintProvider : ConstraintProvider {
                 { it.subgroup.division },
                 collectAndThen(toList()) { lessons -> lessons.groupBy(Lesson::subgroup) })
             .penalize(HardSoftScore.ONE_HARD) { _, _, subgroups ->
-                val expectedLessonPairs = subgroups.values.maxOf(List<Lesson>::size)
-                val actualLessonPairs = subgroups.values.flatten().distinctBy(Lesson::timeslot).size
-                (expectedLessonPairs - actualLessonPairs).absoluteValue
+                val lessonCountByTimeslot =
+                    subgroups.values.flatten().groupingBy(Lesson::timeslot).eachCount().toMutableMap()
+                val maxSubgroupLessons = subgroups.values.maxOf(List<Lesson>::size)
+                (0 until maxSubgroupLessons).map { index ->
+                    subgroups.values.mapNotNull { it.getOrNull(index) }
+                }.sumOf { pair ->
+                    lessonCountByTimeslot.firstNotNullOfOrNull {
+                        if (it.value == pair.size) it.key else null
+                    }?.let {
+                        lessonCountByTimeslot.remove(it)
+                        0
+                    } ?: (1).toInt()
+                }
             }.asConstraint("Subgroup time efficiency")
     }
 }
