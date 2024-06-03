@@ -154,6 +154,13 @@ class TimetableConstraintProvider : ConstraintProvider {
     }
 
     private fun dayComplexity(constraintFactory: ConstraintFactory): Constraint {
+        // will not work as expected when will be more than two subgroups in division
+        // and these subgroups will have different number of lessons, for example:
+        // 8:00 [math group, chemistry group, history group]
+        // 9:00 [math group, history group]
+        // sum of groups' day complexity will be wrong: [math + math, chemistry + history, history + math]
+        // sum of groups' day complexity should be: [math + math, chemistry, history + history]
+        // this happened because solution is naive index-based, but it's ok for time of writing
         return constraintFactory.forEach(Lesson::class.java)
             .groupBy(
                 Lesson::group,
