@@ -5,15 +5,19 @@ import subjectsService from '@/subjects/subjects.service'
 import type { Group, GroupDetail, GroupDetailUi } from '@/groups/group'
 import type { Subject } from '@/subjects/Subject'
 import { computed } from 'vue'
-import type { Teacher, TeacherDetail } from '@/teachers/Teacher'
+import type { TeacherDetail } from '@/teachers/Teacher'
 import type { Room } from '@/rooms/room'
 import teachersService from '@/teachers/teachers.service'
 import roomsService from '@/rooms/rooms.service'
+import type { SubgroupDetail } from '@/divisions/subgroup'
+import divisionsService from '@/divisions/divisions.service'
+import type { LessonUi } from '@/lessons/lesson'
 
 const groups = ref<Group[]>([]) as Ref<Group[]>
 const subjects = ref<Subject[]>([])
 const teachersDetail = ref<TeacherDetail[]>([])
 const rooms = ref<Room[]>([])
+const subgroups = ref<SubgroupDetail[]>([])
 const hours = [...Array(11).keys()].slice(1)
 const headers = [
   { title: 'Название', value: 'name' },
@@ -120,25 +124,43 @@ const startDeletingGroup = (item: Group) => {
   activeGroup.value = { ...item, lessons: [] }
   dialogDelete.value = true
 }
-const updateHours = (hours: number, subject: Subject, teacher?: Teacher) => {
-  const oldLessons = activeGroup.value.lessons
-  const lessons = oldLessons
-    .filter((value) => value.subject.id === subject.id)
-    .filter((value) => value.teacher?.id === teacher?.id)
-  const old = lessons.length
+const updateHours = (hours: number, lesson: LessonUi) => {
+  const lessons = activeGroup.value.lessons
+  const indexes = lessons.reduceRight((acc: number[], value, index) => {
+    if (
+      value.subject.id === lesson.subject.id &&
+      value.subgroup?.id === lesson.subgroup?.id &&
+      value.teacher?.id === lesson.teacher?.id &&
+      value.room?.id === lesson.room?.id
+    ) {
+      acc.push(index)
+    }
+    return acc
+  }, [])
+  const old = indexes.length
   const diff = hours - old
   if (diff > 0) {
-    lessons.push(...Array.from(Array(diff), () => ({ ...lessons[0], id: 0, timeslot: null })))
+    lessons.push(
+      ...Array.from(Array(diff), () => ({ ...lessons[indexes[0]], id: 0, timeslot: null }))
+    )
   }
 
   if (diff < 0) {
-    lessons.splice(0, Math.abs(diff))
+    indexes.slice(0, Math.abs(diff)).forEach((value) => lessons.splice(value, 1))
   }
-
-  activeGroup.value.lessons = oldLessons
-    .filter((value) => !(value.subject.id === subject.id && value.teacher?.id === teacher?.id))
-    .concat(lessons)
 }
+
+const addSubgroup = (subject: Subject) =>
+  activeGroup.value.lessons.push({
+    id: 0,
+    group: {
+      id: activeGroup.value.id,
+      number: activeGroup.value.number,
+      letter: activeGroup.value.letter
+    },
+    subject: subject,
+    timeslot: null
+  })
 
 onMounted(() => {
   groupsService
@@ -160,6 +182,11 @@ onMounted(() => {
     .all()
     .then((value) => (rooms.value = value))
     .catch((error) => console.error(error))
+
+  divisionsService
+    .allSubgroups()
+    .then((value) => (subgroups.value = value))
+    .catch((error) => console.error(error))
 })
 </script>
 <template>
@@ -169,7 +196,7 @@ onMounted(() => {
         <v-toolbar-title>Классы</v-toolbar-title>
         <v-divider class="mx-4" inset vertical></v-divider>
         <v-spacer></v-spacer>
-        <v-dialog v-model="dialog" max-width="800px">
+        <v-dialog v-model="dialog" max-width="1200px">
           <template v-slot:activator="{ props }">
             <v-btn class="mb-2" color="primary" dark v-bind="props" @click="resetActiveGroup">
               Добавить класс
@@ -225,16 +252,50 @@ onMounted(() => {
                         .filter((value) => value.subject.id === subject.id)
                         .filter(
                           (value, index, array) =>
-                            array.findIndex((item) => item.teacher?.id === value.teacher?.id) ===
-                            index
+                            array.findIndex(
+                              (item) =>
+                                item.subgroup?.id === value.subgroup?.id &&
+                                item.teacher?.id === value.teacher?.id &&
+                                item.room?.id === value.room?.id
+                            ) === index
                         )
-                        .sort((a, b) =>
-                          `${a.teacher?.lastname} ${a.teacher?.firstname}`.localeCompare(
-                            `${b.teacher?.lastname} ${b.teacher?.firstname}`
-                          )
-                        )"
+                        .sort((a, b) => b.id - a.id)"
                       :key="lesson.id"
                     >
+                      <v-col>
+                        <v-select
+                          label="Подгруппа"
+                          :items="subgroups"
+                          :model-value="lesson.subgroup"
+                          @update:model-value="
+                            (subgroup) =>
+                              activeGroup.lessons
+                                .filter((value) => value.subject.id === subject.id)
+                                .filter((value) => value.teacher?.id === lesson.teacher?.id)
+                                .filter((value) => value.subgroup?.id === lesson.subgroup?.id)
+                                .filter((value) => value.room?.id === lesson.room?.id)
+                                .forEach((item) => (item.subgroup = subgroup))
+                          "
+                          :item-title="(value) => value.name"
+                          return-object
+                          :prepend-icon="
+                            activeGroup.lessons
+                              .filter((value) => value.subject.id === subject.id)
+                              .filter(
+                                (value, index, array) =>
+                                  array.findIndex(
+                                    (item) =>
+                                      item.subgroup?.id === value.subgroup?.id &&
+                                      item.teacher?.id === value.teacher?.id &&
+                                      item.room?.id === value.room?.id
+                                  ) === index
+                              ).length > 1
+                              ? 'mdi-delete'
+                              : undefined
+                          "
+                          @click:prepend="updateHours(0, lesson)"
+                        ></v-select>
+                      </v-col>
                       <v-col>
                         <v-select
                           label="Учитель"
@@ -251,6 +312,8 @@ onMounted(() => {
                               activeGroup.lessons
                                 .filter((value) => value.subject.id === subject.id)
                                 .filter((value) => value.teacher?.id === lesson.teacher?.id)
+                                .filter((value) => value.subgroup?.id === lesson.subgroup?.id)
+                                .filter((value) => value.room?.id === lesson.room?.id)
                                 .forEach((item) => (item.teacher = teacher))
                           "
                           :item-title="(value) => `${value.lastname} ${value.firstname}`"
@@ -268,6 +331,8 @@ onMounted(() => {
                               activeGroup.lessons
                                 .filter((value) => value.subject.id === subject.id)
                                 .filter((value) => value.teacher?.id === lesson.teacher?.id)
+                                .filter((value) => value.subgroup?.id === lesson.subgroup?.id)
+                                .filter((value) => value.room?.id === lesson.room?.id)
                                 .forEach((item) => (item.room = room))
                           "
                           :item-title="(value) => value.name"
@@ -282,12 +347,24 @@ onMounted(() => {
                           :model-value="
                             activeGroup.lessons
                               .filter((value) => value.subject.id === subject.id)
-                              .filter((value) => value.teacher?.id === lesson.teacher?.id).length
+                              .filter((value) => value.teacher?.id === lesson.teacher?.id)
+                              .filter((value) => value.subgroup?.id === lesson.subgroup?.id)
+                              .filter((value) => value.room?.id === lesson.room?.id).length
                           "
-                          @update:model-value="
-                            (hours) => updateHours(hours, subject, lesson.teacher)
-                          "
+                          @update:model-value="(hours) => updateHours(hours, lesson)"
                         ></v-select>
+                      </v-col>
+                    </v-row>
+                    <v-row
+                      v-if="
+                        activeGroup.lessons
+                          .filter((value) => value.subject.id === subject.id)
+                          .filter((value) => !value.subgroup || !value.teacher || !value.room)
+                          .length == 0
+                      "
+                    >
+                      <v-col>
+                        <v-btn @click="addSubgroup(subject)">Добавить подгруппу</v-btn>
                       </v-col>
                     </v-row>
                   </v-col>

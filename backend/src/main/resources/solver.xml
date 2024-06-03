@@ -10,4 +10,18 @@
     <termination>
         <unimprovedSecondsSpentLimit>30</unimprovedSecondsSpentLimit>
     </termination>
+
+    <constructionHeuristic>
+        <constructionHeuristicType>FIRST_FIT</constructionHeuristicType>
+    </constructionHeuristic>
+
+    <localSearch>
+        <localSearchType>LATE_ACCEPTANCE</localSearchType>
+        <unionMoveSelector>
+            <changeMoveSelector />
+            <swapMoveSelector />
+            <pillarSwapMoveSelector />
+            <pillarChangeMoveSelector />
+        </unionMoveSelector>
+    </localSearch>
 </solver>

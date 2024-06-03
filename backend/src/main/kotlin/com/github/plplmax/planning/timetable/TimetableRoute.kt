@@ -38,7 +38,7 @@ class TimetableRoute(
                         timeslots = timeslots.all(),
                         lessons = lessons.all(),
                         pairedSubjects = pairedSubjects.all(),
-                        subjects = subjects.all(),
+                        subjects = subjects.allDetails(),
                         score = HardSoftScore.ZERO
                     )
                 ) { timetable ->
@@ -61,7 +61,7 @@ class TimetableRoute(
                         timeslots = timeslots.all(),
                         lessons = lessons.all(),
                         pairedSubjects = pairedSubjects.all(),
-                        subjects = subjects.all(),
+                        subjects = subjects.allDetails(),
                         score = HardSoftScore.ZERO
                     )
                 ).also { call.respond(it.toString()) }

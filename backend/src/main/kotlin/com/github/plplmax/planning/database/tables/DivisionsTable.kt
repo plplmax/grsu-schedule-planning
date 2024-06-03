@@ -1,0 +1,5 @@
+package com.github.plplmax.planning.database.tables
+
+import org.jetbrains.exposed.dao.id.IntIdTable
+
+object DivisionsTable : IntIdTable()

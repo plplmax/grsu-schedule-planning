@@ -13,6 +13,8 @@ class DatabaseTables : Tables {
         LessonsTable,
         PairedSubjectsTable,
         GroupsToPairedSubjectsTable,
-        TimeslotsToSubjectsTable
+        TimeslotsToSubjectsTable,
+        DivisionsTable,
+        SubgroupsTable
     )
 }

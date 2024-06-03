@@ -31,7 +31,8 @@ class TimetableConstraintProvider : ConstraintProvider {
             disallowedSubjectsTimeslots(constraintFactory),
             minDaysBetweenLessonsHard(constraintFactory),
             minDaysBetweenLessonsSoft(constraintFactory),
-            onceFirstOrLastTimeslot(constraintFactory)
+            onceFirstOrLastTimeslot(constraintFactory),
+            subgroupTimeEfficiency(constraintFactory)
         )
     }
 
@@ -59,7 +60,8 @@ class TimetableConstraintProvider : ConstraintProvider {
             .forEachUniquePair(
                 Lesson::class.java,
                 Joiners.equal(Lesson::timeslot),
-                Joiners.equal(Lesson::group)
+                Joiners.equal(Lesson::group),
+                Joiners.filtering { first, second -> first.subgroup.division != second.subgroup.division || first.subgroup == second.subgroup }
             )
             .penalize(HardSoftScore.ONE_HARD)
             .asConstraint("Group conflict");
@@ -67,7 +69,7 @@ class TimetableConstraintProvider : ConstraintProvider {
 
     private fun evenlyDistributedLessonsPerDay(constraintFactory: ConstraintFactory): Constraint {
         return constraintFactory.forEach(Lesson::class.java)
-            .groupBy({ it.timeslot?.dayOfWeek }, Lesson::group, count())
+            .groupBy({ it.timeslot?.dayOfWeek }, Lesson::group, countDistinct(Lesson::timeslot))
             .concat(
                 constraintFactory.forEach(Timeslot::class.java)
                     .groupBy(Timeslot::dayOfWeek)
@@ -127,8 +129,8 @@ class TimetableConstraintProvider : ConstraintProvider {
 
     private fun subjectVarietyPerDay(constraintFactory: ConstraintFactory): Constraint {
         return constraintFactory.forEach(Lesson::class.java)
-            .groupBy(Lesson::group, { it.timeslot?.dayOfWeek }, toList(Lesson::subject))
-            .penalize(HardSoftScore.ONE_HARD) { _, _, subjects -> subjects.size - subjects.distinct().size }
+            .groupBy(Lesson::group, { it.timeslot?.dayOfWeek }, toList())
+            .penalize(HardSoftScore.ONE_HARD) { _, _, lessons -> lessons.size - lessons.distinctBy { it.subject to it.subgroup }.size }
             .asConstraint("Subject variety per day")
     }
 
@@ -156,8 +158,9 @@ class TimetableConstraintProvider : ConstraintProvider {
             .groupBy(
                 Lesson::group,
                 { it.timeslot?.dayOfWeek },
-                sum { lesson -> lesson.subject.complexity }
-            ).concat(
+                collectAndThen(toList()) { lessons -> lessons.distinctBy { it.timeslot to it.subject.complexity } }
+            )
+            .concat(
                 constraintFactory.forEach(Lesson::class.java)
                     .groupBy(Lesson::group)
                     .join(
@@ -168,13 +171,28 @@ class TimetableConstraintProvider : ConstraintProvider {
                         Joiners.equal(
                             { group, dayOfWeek -> group to dayOfWeek },
                             { lesson -> lesson.group to lesson.timeslot?.dayOfWeek })
-                    ).expand { _, _ -> 0 }
-            ).groupBy({ group, _, _ -> group }, toMap({ _, dayOfWeek, _ -> dayOfWeek }, { _, _, count -> count }))
-            .map({ group, _ -> group }, { _, dayOfWeeks -> dayOfWeeks.mapValues { entry -> entry.value.first() } })
-            .penalize(HardSoftScore.ONE_SOFT) { _, dayOfWeeks ->
-                with(dayOfWeeks) {
-                    -values.sumOf { it * it } + values.sumOf { it } * values.sumOf { it } * 1.0 / size
-                }.let { if (it < 0) it + 1 else it }.roundToInt().absoluteValue
+                    ).expand { _, _ -> listOf() }
+            ).groupBy({ group, _, _ -> group }, toMap({ _, dayOfWeek, _ -> dayOfWeek }, { _, _, lessons ->
+                val timeslots = lessons.groupBy(Lesson::timeslot)
+                    .mapValues { entry -> entry.value.sortedBy { lesson -> lesson.subgroup.id } }
+                    .ifEmpty { return@toMap listOf(0) }
+                val maxSubgroupsInTimeslot = timeslots.values.maxOf(List<Lesson>::size)
+                (0 until maxSubgroupsInTimeslot).map {
+                    timeslots.map { entry -> entry.value.getOrNull(it) ?: entry.value.first() }
+                        .sumOf { lesson -> lesson.subject.complexity }
+                }
+            }))
+            .map({ group, _ -> group }, { _, daysOfWeek -> daysOfWeek.mapValues { it.value.first() } })
+            .penalize(HardSoftScore.ONE_SOFT) { _, daysOfWeek ->
+                val subgroupsCount = daysOfWeek.values.maxOf(List<Int>::size)
+                (0 until subgroupsCount).map { index ->
+                    val squaredSum = daysOfWeek.values.sumOf {
+                        val complexity = it.getOrNull(index) ?: it.first()
+                        complexity * complexity
+                    }
+                    val sum = daysOfWeek.values.sumOf { it.getOrNull(index) ?: it.first() }
+                    -squaredSum + sum * sum * 1.0 / daysOfWeek.size
+                }.sumOf { (if (it < 0) it + 1 else it).roundToInt().absoluteValue }
             }.asConstraint("Day complexity")
     }
 
@@ -232,8 +250,8 @@ class TimetableConstraintProvider : ConstraintProvider {
     private fun minDaysBetweenLessonsHard(constraintFactory: ConstraintFactory): Constraint {
         return constraintFactory.forEach(Lesson::class.java)
             .filter { it.subject.minDaysStrict }
-            .groupBy(Lesson::group, Lesson::subject, toList { lesson -> lesson.timeslot!!.dayOfWeek })
-            .penalize(HardSoftScore.ONE_HARD) { _, subject, dayOfWeeks ->
+            .groupBy(Lesson::group, Lesson::subject, Lesson::subgroup, toList { lesson -> lesson.timeslot!!.dayOfWeek })
+            .penalize(HardSoftScore.ONE_HARD) { _, subject, _, dayOfWeeks ->
                 dayOfWeeks.sortedBy(DayOfWeek::getValue)
                     .zipWithNext()
                     .sumOf { (first, second) ->
@@ -246,8 +264,8 @@ class TimetableConstraintProvider : ConstraintProvider {
     private fun minDaysBetweenLessonsSoft(constraintFactory: ConstraintFactory): Constraint {
         return constraintFactory.forEach(Lesson::class.java)
             .filter { !it.subject.minDaysStrict }
-            .groupBy(Lesson::group, Lesson::subject, toList { lesson -> lesson.timeslot!!.dayOfWeek })
-            .impact(HardSoftScore.ONE_SOFT) { _, subject, dayOfWeeks ->
+            .groupBy(Lesson::group, Lesson::subject, Lesson::subgroup, toList { lesson -> lesson.timeslot!!.dayOfWeek })
+            .impact(HardSoftScore.ONE_SOFT) { _, subject, _, dayOfWeeks ->
                 dayOfWeeks.sortedBy(DayOfWeek::getValue)
                     .zipWithNext()
                     .sumOf { (first, second) ->
@@ -281,5 +299,18 @@ class TimetableConstraintProvider : ConstraintProvider {
             .filter { _, firstOrLastTimeslots, _, timeslots -> !timeslots.any { firstOrLastTimeslots.contains(it) } }
             .penalize(HardSoftScore.ONE_HARD)
             .asConstraint("Once first or last timeslot")
+    }
+
+    private fun subgroupTimeEfficiency(constraintFactory: ConstraintFactory): Constraint {
+        return constraintFactory.forEach(Lesson::class.java)
+            .groupBy(
+                Lesson::group,
+                { it.subgroup.division },
+                collectAndThen(toList()) { lessons -> lessons.groupBy(Lesson::subgroup) })
+            .penalize(HardSoftScore.ONE_HARD) { _, _, subgroups ->
+                val expectedLessonPairs = subgroups.values.maxOf(List<Lesson>::size)
+                val actualLessonPairs = subgroups.values.flatten().distinctBy(Lesson::timeslot).size
+                (expectedLessonPairs - actualLessonPairs).absoluteValue
+            }.asConstraint("Subgroup time efficiency")
     }
 }

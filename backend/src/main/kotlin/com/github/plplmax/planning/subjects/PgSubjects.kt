@@ -16,7 +16,15 @@ class PgSubjects(
     private val database: Database,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : Subjects {
-    override suspend fun all(): List<SubjectDetail> {
+    override suspend fun all(): List<Subject> {
+        return newSuspendedTransaction(dispatcher, database) {
+            SubjectsTable.selectAll()
+                .orderBy(SubjectsTable.name to SortOrder.ASC)
+                .map(::toSubject)
+        }
+    }
+
+    override suspend fun allDetails(): List<SubjectDetail> {
         return newSuspendedTransaction(dispatcher, database) {
             SubjectsTable.leftJoin(TimeslotsToSubjectsTable)
                 .leftJoin(TimeslotsTable)

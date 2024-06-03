@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { Subject } from '@/subjects/Subject'
+import type { SubjectDetail } from '@/subjects/Subject'
 import { computed, onMounted, ref, type Ref } from 'vue'
 import subjectsService from '@/subjects/subjects.service'
 import { dayOfWeeks, type Timeslot } from '@/timeslots/Timeslot'
 import timeslotsService from '@/timeslots/timeslots.service'
 
-const subjects = ref<Subject[]>([]) as Ref<Subject[]>
+const subjects = ref<SubjectDetail[]>([]) as Ref<SubjectDetail[]>
 const timeslots = ref<Timeslot[]>([])
 const headers = [
   { title: 'Название', value: 'name' },
@@ -15,7 +15,7 @@ const complexityPoints = [...Array(13).keys()]
 const minDaysBetween = [...Array(5).keys()].splice(1)
 const dialog = ref(false)
 const dialogDelete = ref(false)
-const defaultSubject: Subject = {
+const defaultSubject: SubjectDetail = {
   id: 0,
   name: '',
   complexity: 0,
@@ -24,7 +24,7 @@ const defaultSubject: Subject = {
   minDaysStrict: false,
   onceFirstOrLastTimeslot: false
 }
-const activeSubject = ref<Subject>({ ...defaultSubject }) as Ref<Subject>
+const activeSubject = ref<SubjectDetail>({ ...defaultSubject }) as Ref<SubjectDetail>
 const resetActiveSubject = () => (activeSubject.value = { ...defaultSubject })
 const closeDialog = () => (dialog.value = false)
 const closeDialogDelete = () => (dialogDelete.value = false)
@@ -56,11 +56,11 @@ const deleteSubject = () => {
     })
     .catch((error) => console.error(error))
 }
-const startEditingSubject = (item: Subject) => {
+const startEditingSubject = (item: SubjectDetail) => {
   activeSubject.value = { ...item }
   dialog.value = true
 }
-const startDeletingSubject = (item: Subject) => {
+const startDeletingSubject = (item: SubjectDetail) => {
   activeSubject.value = item
   dialogDelete.value = true
 }
@@ -77,7 +77,7 @@ const toggleSelectAll = () => {
 }
 onMounted(() => {
   subjectsService
-    .all()
+    .allDetails()
     .then((value) => (subjects.value = value))
     .catch((error) => console.error(error))
 

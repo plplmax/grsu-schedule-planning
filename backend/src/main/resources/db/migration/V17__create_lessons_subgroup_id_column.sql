@@ -1,0 +1,3 @@
+ALTER TABLE lessons
+ADD "subgroupId" INT NOT NULL DEFAULT 1,
+ADD CONSTRAINT fk_lessons_subgroupid__id FOREIGN KEY ("subgroupId") REFERENCES subgroups(id) ON DELETE CASCADE ON UPDATE CASCADE;

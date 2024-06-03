@@ -138,6 +138,7 @@ onUnmounted(() => stopUpdating())
             class="mb-2"
           >
             <v-card :color="getSubjectColor(lesson.subject.name)" class="px-2 py-2">
+              <div>{{ `${lesson.subgroup.name}` }}</div>
               <div>{{ `${lesson.subject.name}` }}</div>
               <div>{{ `${lesson.teacher.lastname} ${lesson.teacher.firstname}` }}</div>
               <div>{{ `${lesson.room.name}` }}</div>
@@ -146,11 +147,14 @@ onUnmounted(() => stopUpdating())
         </td>
         <td v-for="timeslot in timeslots" :key="timeslot.id" class="border">
           <div
-            v-for="lesson in item.lessons.filter((value) => value.timeslot?.id === timeslot.id)"
+            v-for="lesson in item.lessons
+              .filter((value) => value.timeslot?.id === timeslot.id)
+              .sort((a, b) => a.subgroup.id - b.subgroup.id)"
             :key="lesson.id"
             class="mb-2"
           >
             <v-card :color="getSubjectColor(lesson.subject.name)" class="px-2 py-2 my-2">
+              <div>{{ `${lesson.subgroup.name}` }}</div>
               <div>{{ `${lesson.subject.name}` }}</div>
               <div>{{ `${lesson.teacher.lastname} ${lesson.teacher.firstname.charAt(0)}.` }}</div>
               <div>{{ `${lesson.room.name}` }}</div>

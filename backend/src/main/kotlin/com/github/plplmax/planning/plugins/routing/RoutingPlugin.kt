@@ -1,5 +1,9 @@
 package com.github.plplmax.planning.plugins.routing
 
+import com.github.plplmax.planning.divisions.DivisionsRoute
+import com.github.plplmax.planning.divisions.PgDivisions
+import com.github.plplmax.planning.divisions.ProtectedDivisions
+import com.github.plplmax.planning.divisions.ValidatedDivisions
 import com.github.plplmax.planning.groups.GroupsRoute
 import com.github.plplmax.planning.groups.PgGroups
 import com.github.plplmax.planning.groups.ValidatedGroups
@@ -42,7 +46,8 @@ class RoutingPlugin(private val database: Database) : AppPlugin {
                     PgTimeslots(database),
                     PgPairedSubjects(database),
                     PgSubjects(database)
-                )
+                ),
+                DivisionsRoute(ProtectedDivisions(ValidatedDivisions(PgDivisions(database))))
             ).install(this)
         }
     }

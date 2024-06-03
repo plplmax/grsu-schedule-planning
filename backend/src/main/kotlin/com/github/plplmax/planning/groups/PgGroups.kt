@@ -2,10 +2,7 @@ package com.github.plplmax.planning.groups
 
 import com.github.plplmax.planning.database.tables.*
 import com.github.plplmax.planning.lessons.Lesson
-import com.github.plplmax.planning.rooms.PgRooms
-import com.github.plplmax.planning.subjects.PgSubjects
-import com.github.plplmax.planning.teachers.PgTeachers
-import com.github.plplmax.planning.timeslots.PgTimeslots
+import com.github.plplmax.planning.lessons.PgLessons
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import org.jetbrains.exposed.sql.*
@@ -29,6 +26,8 @@ class PgGroups(
     override suspend fun allDetails(): List<GroupDetail> {
         return newSuspendedTransaction(dispatcher, database) {
             GroupsTable.leftJoin(LessonsTable)
+                .leftJoin(SubgroupsTable)
+                .leftJoin(DivisionsTable)
                 .leftJoin(TeachersTable, onColumn = { LessonsTable.teacherId }, otherColumn = { TeachersTable.id })
                 .leftJoin(SubjectsTable, onColumn = { LessonsTable.subjectId }, otherColumn = { SubjectsTable.id })
                 .leftJoin(RoomsTable)
@@ -37,7 +36,8 @@ class PgGroups(
                 .orderBy(
                     GroupsTable.number to SortOrder.DESC,
                     GroupsTable.letter to SortOrder.ASC,
-                    SubjectsTable.name to SortOrder.ASC
+                    SubjectsTable.name to SortOrder.ASC,
+                    SubgroupsTable.id to SortOrder.ASC
                 )
                 .let(::toGroupDetails)
         }
@@ -46,12 +46,14 @@ class PgGroups(
     override suspend fun findById(id: Int): Optional<GroupDetail> {
         return newSuspendedTransaction(dispatcher, database) {
             GroupsTable.leftJoin(LessonsTable)
+                .leftJoin(SubgroupsTable)
+                .leftJoin(DivisionsTable)
                 .leftJoin(TeachersTable, onColumn = { LessonsTable.teacherId }, otherColumn = { TeachersTable.id })
                 .leftJoin(SubjectsTable, onColumn = { LessonsTable.subjectId }, otherColumn = { SubjectsTable.id })
                 .leftJoin(RoomsTable)
                 .leftJoin(TimeslotsTable)
                 .select { GroupsTable.id eq id }
-                .orderBy(SubjectsTable.name to SortOrder.ASC)
+                .orderBy(SubjectsTable.name to SortOrder.ASC, SubgroupsTable.id to SortOrder.ASC)
                 .let(::toGroupDetails)
                 .let { Optional.ofNullable(it.firstOrNull()) }
         }
@@ -66,6 +68,7 @@ class PgGroups(
 
             LessonsTable.batchInsert(group.lessons) {
                 this[LessonsTable.groupId] = groupId
+                this[LessonsTable.subgroupId] = it.subgroup.id
                 this[LessonsTable.teacherId] = it.teacher.id
                 this[LessonsTable.subjectId] = it.subject.id
                 this[LessonsTable.roomId] = it.room.id
@@ -73,12 +76,14 @@ class PgGroups(
             }
 
             GroupsTable.leftJoin(LessonsTable)
+                .leftJoin(SubgroupsTable)
+                .leftJoin(DivisionsTable)
                 .leftJoin(TeachersTable, onColumn = { LessonsTable.teacherId }, otherColumn = { TeachersTable.id })
                 .leftJoin(SubjectsTable, onColumn = { LessonsTable.subjectId }, otherColumn = { SubjectsTable.id })
                 .leftJoin(RoomsTable)
                 .leftJoin(TimeslotsTable)
                 .select { GroupsTable.id eq groupId }
-                .orderBy(SubjectsTable.name to SortOrder.ASC)
+                .orderBy(SubjectsTable.name to SortOrder.ASC, SubgroupsTable.id to SortOrder.ASC)
                 .let(::toGroupDetails)
                 .firstOrNull() ?: error("There is no result after inserting a new group")
         }
@@ -93,6 +98,7 @@ class PgGroups(
 
             group.lessons.forEach { lesson ->
                 LessonsTable.update({ (LessonsTable.groupId eq group.id) and (LessonsTable.id eq lesson.id) }) {
+                    it[subgroupId] = lesson.subgroup.id
                     it[teacherId] = lesson.teacher.id
                     it[subjectId] = lesson.subject.id
                     it[roomId] = lesson.room.id
@@ -101,6 +107,8 @@ class PgGroups(
             }
 
             val dbGroups = GroupsTable.leftJoin(LessonsTable)
+                .leftJoin(SubgroupsTable)
+                .leftJoin(DivisionsTable)
                 .leftJoin(TeachersTable, onColumn = { LessonsTable.teacherId }, otherColumn = { TeachersTable.id })
                 .leftJoin(SubjectsTable, onColumn = { LessonsTable.subjectId }, otherColumn = { SubjectsTable.id })
                 .leftJoin(RoomsTable)
@@ -114,6 +122,7 @@ class PgGroups(
 
             LessonsTable.batchInsert(added) {
                 this[LessonsTable.groupId] = group.id
+                this[LessonsTable.subgroupId] = it.subgroup.id
                 this[LessonsTable.teacherId] = it.teacher.id
                 this[LessonsTable.subjectId] = it.subject.id
                 this[LessonsTable.roomId] = it.room.id
@@ -123,12 +132,14 @@ class PgGroups(
             LessonsTable.deleteWhere { LessonsTable.id inList deleted.map(Lesson::id) }
 
             GroupsTable.leftJoin(LessonsTable)
+                .leftJoin(SubgroupsTable)
+                .leftJoin(DivisionsTable)
                 .leftJoin(TeachersTable, onColumn = { LessonsTable.teacherId }, otherColumn = { TeachersTable.id })
                 .leftJoin(SubjectsTable, onColumn = { LessonsTable.subjectId }, otherColumn = { SubjectsTable.id })
                 .leftJoin(RoomsTable)
                 .leftJoin(TimeslotsTable)
                 .select { GroupsTable.id eq group.id }
-                .orderBy(SubjectsTable.name to SortOrder.ASC)
+                .orderBy(SubjectsTable.name to SortOrder.ASC, SubgroupsTable.id to SortOrder.ASC)
                 .let(::toGroupDetails)
                 .firstOrNull() ?: error("There is no result after inserting a new group")
         }
@@ -159,16 +170,7 @@ class PgGroups(
                     number = row[GroupsTable.number],
                     letter = row[GroupsTable.letter]
                 )
-                val lesson = row.getOrNull(LessonsTable.id)?.let {
-                    Lesson(
-                        id = it.value,
-                        group = group,
-                        teacher = PgTeachers.toTeacher(row),
-                        subject = PgSubjects.toSubject(row),
-                        room = PgRooms.toRoom(row),
-                        timeslot = row.getOrNull(TimeslotsTable.id)?.let { PgTimeslots.toTimeslot(row) })
-                }
-
+                val lesson = row.getOrNull(LessonsTable.id)?.let { PgLessons.toLesson(row) }
                 groups.merge(group, listOfNotNull(lesson)) { a, b -> a + b }
             }
 

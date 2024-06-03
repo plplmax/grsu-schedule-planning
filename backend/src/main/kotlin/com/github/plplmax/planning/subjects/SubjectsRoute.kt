@@ -15,6 +15,9 @@ class SubjectsRoute(private val subjects: Subjects, vararg children: AppRoute) :
             get {
                 call.respond(subjects.all())
             }
+            get("/details") {
+                call.respond(subjects.allDetails())
+            }
             post {
                 call.receive<NewSubject>().let { subjects.insert(it) }.let { call.respond(it) }
             }
