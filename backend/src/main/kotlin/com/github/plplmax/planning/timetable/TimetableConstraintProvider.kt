@@ -12,7 +12,6 @@ import com.github.plplmax.planning.subjects.paired.PairedSubjects
 import com.github.plplmax.planning.timeslots.Timeslot
 import java.time.DayOfWeek
 import java.time.Duration
-import java.util.function.Function
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 
@@ -81,47 +80,33 @@ class TimetableConstraintProvider : ConstraintProvider {
                         Joiners.equal(
                             { dayOfWeek, group -> dayOfWeek to group },
                             { lesson -> lesson.timeslot?.dayOfWeek to lesson.group })
-                    )
-            ).flattenLast { listOf(it ?: 0) }
-            .groupBy({ _, group, _ -> group }, toMap({ dayOfWeek, _, _ -> dayOfWeek }, { _, _, count -> count }))
-            .map({ group, _ -> group }, { _, dayOfWeeks -> dayOfWeeks.mapValues { entry -> entry.value.first() } })
-            .penalize(HardSoftScore.ONE_SOFT) { _, dayOfWeeks ->
-                with(dayOfWeeks) {
-                    -values.sumOf { it * it } + values.sumOf { it } * values.sumOf { it } * 1.0 / size
-                }.let { if (it < 0) it + 1 else it }.roundToInt().absoluteValue
-            }
+                    ).expand { _, _ -> 0 }
+            ).groupBy(
+                { _, group, _ -> group },
+                collectAndThen(
+                    toMap({ dayOfWeek, _, _ -> dayOfWeek }, { _, _, count -> count })
+                ) { days -> days.mapValues { entry -> entry.value.first() } }
+            ).expand { _, daysOfWeek ->
+                val squaredSum = daysOfWeek.values.sumOf { it * it }
+                val sum = daysOfWeek.values.sumOf { it }
+                (-squaredSum + sum * sum * 1.0 / daysOfWeek.size).let {
+                    if (it < 0) it + 1 else it
+                }.roundToInt().absoluteValue
+            }.filter { _, _, penalty -> penalty > 0 }
+            .penalize(HardSoftScore.ONE_HARD) { _, _, penalty -> penalty }
             .asConstraint("Evenly distributed lessons per day")
     }
 
     private fun noGapsAtFirstTimeslotEachDay(constraintFactory: ConstraintFactory): Constraint {
         return constraintFactory.forEach(Timeslot::class.java)
-            .groupBy(Timeslot::dayOfWeek, toList())
-            .map { _, timeslots -> timeslots.first() }
-            .join(Lesson::class.java, Joiners.equal(Function.identity(), Lesson::timeslot))
-            .groupBy(
-                { timeslot, _ -> timeslot },
-                { _, lesson -> lesson.group },
-                collectAndThen(toList { _: Timeslot, lesson: Lesson -> lesson }) { it.first() }
-            ).concat(
-                constraintFactory.forEach(Timeslot::class.java)
-                    .groupBy(Timeslot::dayOfWeek, toList())
-                    .map { _, timeslots -> timeslots.first() }
-                    .join(
-                        constraintFactory.forEach(Lesson::class.java)
-                            .groupBy(Lesson::group)
-                    ).ifNotExists(
-                        Lesson::class.java,
-                        Joiners.equal(
-                            { timeslot, group -> timeslot to group },
-                            { lesson -> lesson.timeslot to lesson.group })
-                    )
-            )
-            .filter { _, _, lesson -> lesson == null }
-            .ifExists(
+            .groupBy(Timeslot::dayOfWeek, collectAndThen(toList()) { it.first() })
+            .join(
+                constraintFactory.forEach(Lesson::class.java)
+                    .groupBy(Lesson::group)
+            ).ifNotExists(
                 Lesson::class.java,
-                Joiners.equal(
-                    { timeslot, group, _ -> timeslot.dayOfWeek to group },
-                    { lesson -> lesson.timeslot?.dayOfWeek to lesson.group })
+                Joiners.equal({ _, _, group -> group }, { lesson -> lesson.group }),
+                Joiners.equal({ _, timeslot, _ -> timeslot }, { lesson -> lesson.timeslot })
             )
             .penalize(HardSoftScore.ONE_HARD)
             .asConstraint("No gaps at first timeslot each day")
@@ -166,17 +151,14 @@ class TimetableConstraintProvider : ConstraintProvider {
             .groupBy(
                 Lesson::group,
                 { it.timeslot?.dayOfWeek },
-                collectAndThen(toList(Lesson::timeslot)) { timeslots -> timeslots.sortedBy { it?.start }.zipWithNext() }
-            )
-            .penalize(HardSoftScore.ONE_HARD) { _, _, timeslots ->
-                timeslots.map {
-                    val between = Duration.between(
-                        it.first?.end,
-                        it.second?.start
-                    )
-                    between >= Duration.ofMinutes(30)
-                }.map { if (it) 1 else 0 }.sum()
+                collectAndThen(toList { lesson -> lesson.timeslot!! }) { timeslots ->
+                    timeslots.sortedBy(Timeslot::start).zipWithNext()
+                }
+            ).flattenLast { it }
+            .filter { _, _, timeslots ->
+                Duration.between(timeslots.first.end, timeslots.second.start) >= Duration.ofMinutes(30)
             }
+            .penalize(HardSoftScore.ONE_HARD)
             .asConstraint("Group time efficiency")
     }
 
@@ -202,9 +184,8 @@ class TimetableConstraintProvider : ConstraintProvider {
                             .groupBy(Timeslot::dayOfWeek)
                     ).ifNotExists(
                         Lesson::class.java,
-                        Joiners.equal(
-                            { group, dayOfWeek -> group to dayOfWeek },
-                            { lesson -> lesson.group to lesson.timeslot?.dayOfWeek })
+                        Joiners.equal({ group, _ -> group }, { lesson -> lesson.group }),
+                        Joiners.equal({ _, dayOfWeek -> dayOfWeek }, { lesson -> lesson.timeslot!!.dayOfWeek })
                     ).expand { _, _ -> listOf() }
             ).groupBy({ group, _, _ -> group }, toMap({ _, dayOfWeek, _ -> dayOfWeek }, { _, _, lessons ->
                 val timeslots = lessons.groupBy(Lesson::timeslot)
@@ -217,7 +198,7 @@ class TimetableConstraintProvider : ConstraintProvider {
                 }
             }))
             .map({ group, _ -> group }, { _, daysOfWeek -> daysOfWeek.mapValues { it.value.first() } })
-            .penalize(HardSoftScore.ONE_SOFT) { _, daysOfWeek ->
+            .expand { _, daysOfWeek ->
                 val subgroupsCount = daysOfWeek.values.maxOf(List<Int>::size)
                 (0 until subgroupsCount).map { index ->
                     val squaredSum = daysOfWeek.values.sumOf {
@@ -227,7 +208,9 @@ class TimetableConstraintProvider : ConstraintProvider {
                     val sum = daysOfWeek.values.sumOf { it.getOrNull(index) ?: it.first() }
                     -squaredSum + sum * sum * 1.0 / daysOfWeek.size
                 }.sumOf { (if (it < 0) it + 1 else it).roundToInt().absoluteValue }
-            }.asConstraint("Day complexity")
+            }.filter { _, _, penalty -> penalty > 0 }
+            .penalize(HardSoftScore.ONE_SOFT) { _, _, penalty -> penalty }
+            .asConstraint("Day complexity")
     }
 
     private fun pairedSubjects(constraintFactory: ConstraintFactory): Constraint {
@@ -240,8 +223,8 @@ class TimetableConstraintProvider : ConstraintProvider {
             )
             .join(
                 Lesson::class.java,
-                Joiners.equal({ _, group -> group }, { lesson -> lesson.group }),
-                Joiners.equal({ subjects, _ -> subjects.firstSubject }, { lesson -> lesson.subject })
+                Joiners.equal({ _, group -> group }, Lesson::group),
+                Joiners.equal({ subjects, _ -> subjects.firstSubject }, Lesson::subject)
             )
             .groupBy({ subjects, _, _ -> subjects }, { _, group, _ -> group }, toList { _, _, lesson -> lesson })
             .concat(
@@ -253,24 +236,22 @@ class TimetableConstraintProvider : ConstraintProvider {
                     .groupBy({ subjects, _ -> subjects }, { _, lesson -> lesson.group }, toList { _, lesson -> lesson })
             )
             .groupBy({ _, group, _ -> group }, { subjects, _, _ -> subjects }, toList { _, _, lessons -> lessons })
-            .map({ group, _, _ -> group }, { _, subjects, _ -> subjects }, { _, _, lessons -> lessons.flatten() })
-            .penalize(HardSoftScore.ONE_HARD) { _, subjects, lessons ->
-                val firstLessons = lessons.filter { it.subject == subjects.firstSubject }.sortedWith(
+            .map({ group, _, _ -> group }, { _, subjects, _ -> subjects }, { _, subjects, lessons ->
+                val allLessons = lessons.flatten()
+                val firstLessons = allLessons.filter { it.subject == subjects.firstSubject }.sortedWith(
                     compareBy({ it.timeslot!!.dayOfWeek }, { it.timeslot!!.start })
                 )
-                val secondLessons = lessons.filter { it.subject == subjects.secondSubject }.sortedWith(
+                val secondLessons = allLessons.filter { it.subject == subjects.secondSubject }.sortedWith(
                     compareBy({ it.timeslot!!.dayOfWeek }, { it.timeslot!!.start })
                 )
-
-                firstLessons.zip(secondLessons).take(subjects.count).filter { (lesson1, lesson2) ->
-                    val between = Duration.between(
-                        lesson1.timeslot?.end,
-                        lesson2.timeslot?.start
-                    )
-                    lesson1.timeslot?.dayOfWeek == lesson2.timeslot?.dayOfWeek && !between.isNegative
-                            && between <= Duration.ofMinutes(30)
-                }.let { it.size - subjects.count }.absoluteValue
-            }.asConstraint("Paired subjects")
+                firstLessons.zip(secondLessons).take(subjects.count)
+            }).flattenLast { it }
+            .filter { _, _, (lesson1, lesson2) ->
+                val between = Duration.between(lesson1.timeslot?.end, lesson2.timeslot?.start)
+                lesson1.timeslot?.dayOfWeek != lesson2.timeslot?.dayOfWeek || between > Duration.ofMinutes(30)
+            }
+            .penalize(HardSoftScore.ONE_HARD)
+            .asConstraint("Paired subjects")
     }
 
     private fun disallowedSubjectsTimeslots(constraintFactory: ConstraintFactory): Constraint {
