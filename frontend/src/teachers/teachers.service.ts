@@ -1,8 +1,12 @@
 import http from '@/http'
 
-import type { TeacherDetail } from './Teacher'
+import type { Teacher, TeacherDetail } from './Teacher'
 
-const all = () => http.get<TeacherDetail[]>('/teachers').then(({ data }) => data)
+const all = () => http.get<Teacher[]>('/teachers').then(({ data }) => data)
+
+const allDetails = () => http.get<TeacherDetail[]>('/teachers/details').then(({ data }) => data)
+
+const findById = (id: number) => http.get<TeacherDetail>(`/teachers/${id}`).then(({ data }) => data)
 
 const add = (item: TeacherDetail) => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -17,4 +21,4 @@ const edit = (item: TeacherDetail) => {
 
 const remove = (id: number) => http.delete<number>(`/teachers/${id}`).then(({ data }) => data)
 
-export default { all, add, edit, remove }
+export default { all, allDetails, findById, add, edit, remove }

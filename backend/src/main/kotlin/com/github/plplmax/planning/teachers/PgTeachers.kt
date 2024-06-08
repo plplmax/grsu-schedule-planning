@@ -1,8 +1,8 @@
 package com.github.plplmax.planning.teachers
 
-import com.github.plplmax.planning.database.tables.SubjectsTable
-import com.github.plplmax.planning.database.tables.TeachersTable
-import com.github.plplmax.planning.database.tables.TeachersToSubjectsTable
+import com.github.plplmax.planning.database.tables.*
+import com.github.plplmax.planning.lessons.Lesson
+import com.github.plplmax.planning.lessons.PgLessons
 import com.github.plplmax.planning.subjects.PgSubjects
 import com.github.plplmax.planning.subjects.Subject
 import kotlinx.coroutines.CoroutineDispatcher
@@ -12,20 +12,50 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import java.util.*
 
 class PgTeachers(
     private val database: Database,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : Teachers {
-    override suspend fun all(): List<TeacherDetail> {
+    override suspend fun all(): List<Teacher> {
         return newSuspendedTransaction(dispatcher, database) {
-            ((TeachersTable leftJoin TeachersToSubjectsTable) leftJoin SubjectsTable).selectAll()
+            teachersJoin()
+                .selectAll()
                 .orderBy(
                     TeachersTable.lastname to SortOrder.ASC,
                     TeachersTable.firstname to SortOrder.ASC,
-                    SubjectsTable.name to SortOrder.ASC_NULLS_LAST
-                )
-                .let(::toTeachersDetail)
+                    SubjectsTable.name to SortOrder.ASC_NULLS_LAST,
+                ).let(::toTeachers)
+        }
+    }
+
+    override suspend fun allDetails(): List<TeacherDetail> {
+        return newSuspendedTransaction(dispatcher, database) {
+            teachersDetailJoin()
+                .selectAll()
+                .orderBy(
+                    TeachersTable.lastname to SortOrder.ASC,
+                    TeachersTable.firstname to SortOrder.ASC,
+                    SubjectsTable.name to SortOrder.ASC_NULLS_LAST,
+                    GroupsTable.number to SortOrder.DESC,
+                    GroupsTable.letter to SortOrder.ASC,
+                    SubgroupsTable.id to SortOrder.ASC,
+                ).let(::toTeachersDetail)
+        }
+    }
+
+    override suspend fun findById(id: Int): Optional<TeacherDetail> {
+        return newSuspendedTransaction(dispatcher, database) {
+            teachersDetailJoin()
+                .select(TeachersTable.id eq id)
+                .orderBy(
+                    SubjectsTable.name to SortOrder.ASC,
+                    GroupsTable.number to SortOrder.DESC,
+                    GroupsTable.letter to SortOrder.ASC,
+                    SubgroupsTable.id to SortOrder.ASC,
+                ).let(::toTeachersDetail)
+                .let { Optional.ofNullable(it.firstOrNull()) }
         }
     }
 
@@ -41,9 +71,23 @@ class PgTeachers(
                 this[TeachersToSubjectsTable.subjectId] = it.id
             }
 
-            ((TeachersTable leftJoin TeachersToSubjectsTable) leftJoin SubjectsTable).select(TeachersTable.id eq id)
-                .orderBy(SubjectsTable.name to SortOrder.ASC_NULLS_LAST)
-                .let(::toTeachersDetail)
+            LessonsTable.batchInsert(teacher.lessons) {
+                this[LessonsTable.groupId] = it.group.id
+                this[LessonsTable.subgroupId] = it.subgroup.id
+                this[LessonsTable.teacherId] = id
+                this[LessonsTable.subjectId] = it.subject.id
+                this[LessonsTable.roomId] = it.room.id
+                this[LessonsTable.timeslotId] = it.timeslot?.id
+            }
+
+            teachersDetailJoin()
+                .select(TeachersTable.id eq id)
+                .orderBy(
+                    SubjectsTable.name to SortOrder.ASC,
+                    GroupsTable.number to SortOrder.DESC,
+                    GroupsTable.letter to SortOrder.ASC,
+                    SubgroupsTable.id to SortOrder.ASC,
+                ).let(::toTeachersDetail)
                 .firstOrNull() ?: error("There is no result after inserting a new teacher")
         }
     }
@@ -55,11 +99,10 @@ class PgTeachers(
                 it[lastname] = teacher.lastname
             }.also { check(it > 0) { "There are no affected rows after updating teacher with id = ${teacher.id}" } }
 
-            val oldTeacher =
-                ((TeachersTable leftJoin TeachersToSubjectsTable) leftJoin SubjectsTable).select(TeachersTable.id eq teacher.id)
-                    .let(::toTeachersDetail)
-                    .firstOrNull()
-                    ?: error("There is no results after fetching subjects for teacher with id = ${teacher.id}")
+            val oldTeacher = teachersJoin().select(TeachersTable.id eq teacher.id)
+                .let(::toTeachers)
+                .firstOrNull()
+                ?: error("There is no results after fetching subjects for teacher with id = ${teacher.id}")
             val addedSubjects = teacher.subjects - oldTeacher.subjects.toSet()
             val deletedSubjects = oldTeacher.subjects - teacher.subjects.toSet()
 
@@ -73,9 +116,49 @@ class PgTeachers(
             }
                 .also { check(it == deletedSubjects.size) { "Not all TeachersToSubjects rows were deleted. Expected = ${deletedSubjects.size}, actual = $it" } }
 
-            ((TeachersTable leftJoin TeachersToSubjectsTable) leftJoin SubjectsTable).select(TeachersTable.id eq teacher.id)
-                .orderBy(SubjectsTable.name to SortOrder.ASC_NULLS_LAST)
-                .let(::toTeachersDetail)
+            teacher.lessons.forEach { lesson ->
+                LessonsTable.update({ (LessonsTable.teacherId eq teacher.id) and (LessonsTable.id eq lesson.id) }) {
+                    it[groupId] = lesson.group.id
+                    it[subgroupId] = lesson.subgroup.id
+                    it[subjectId] = lesson.subject.id
+                    it[roomId] = lesson.room.id
+                    it[timeslotId] = lesson.timeslot?.id
+                }
+            }
+
+            val oldLessons = LessonsTable
+                .innerJoin(GroupsTable)
+                .innerJoin(SubgroupsTable)
+                .innerJoin(DivisionsTable)
+                .innerJoin(TeachersTable, onColumn = { LessonsTable.teacherId }, otherColumn = { TeachersTable.id })
+                .innerJoin(SubjectsTable, onColumn = { LessonsTable.subjectId }, otherColumn = { SubjectsTable.id })
+                .innerJoin(RoomsTable)
+                .leftJoin(TimeslotsTable)
+                .select { LessonsTable.teacherId eq teacher.id }
+                .map(PgLessons::toLesson)
+
+            val addedLessons = teacher.lessons - oldLessons.toSet()
+            val deletedLessons = oldLessons - teacher.lessons.toSet()
+
+            LessonsTable.batchInsert(addedLessons) {
+                this[LessonsTable.groupId] = it.group.id
+                this[LessonsTable.subgroupId] = it.subgroup.id
+                this[LessonsTable.teacherId] = teacher.id
+                this[LessonsTable.subjectId] = it.subject.id
+                this[LessonsTable.roomId] = it.room.id
+                this[LessonsTable.timeslotId] = it.timeslot?.id
+            }
+
+            LessonsTable.deleteWhere { LessonsTable.id inList deletedLessons.map(Lesson::id) }
+
+            teachersDetailJoin()
+                .select(TeachersTable.id eq teacher.id)
+                .orderBy(
+                    SubjectsTable.name to SortOrder.ASC,
+                    GroupsTable.number to SortOrder.DESC,
+                    GroupsTable.letter to SortOrder.ASC,
+                    SubgroupsTable.id to SortOrder.ASC,
+                ).let(::toTeachersDetail)
                 .firstOrNull() ?: error("There is no result after updating a teacher")
         }
     }
@@ -97,28 +180,65 @@ class PgTeachers(
         }
     }
 
-    private fun toTeachersDetail(query: Query): List<TeacherDetail> {
-        val teachers = mutableMapOf<Int, TeacherDetail>()
+    private fun teachersJoin(): ColumnSet {
+        return TeachersTable.leftJoin(TeachersToSubjectsTable)
+            .leftJoin(SubjectsTable)
+    }
+
+    private fun teachersDetailJoin(): ColumnSet {
+        return TeachersTable.leftJoin(TeachersToSubjectsTable)
+            .leftJoin(
+                LessonsTable,
+                onColumn = { TeachersToSubjectsTable.teacherId },
+                otherColumn = { teacherId },
+                additionalConstraint = { TeachersToSubjectsTable.subjectId eq LessonsTable.subjectId })
+            .leftJoin(SubjectsTable)
+            .leftJoin(GroupsTable)
+            .leftJoin(SubgroupsTable)
+            .leftJoin(DivisionsTable)
+            .leftJoin(RoomsTable)
+            .leftJoin(TimeslotsTable)
+    }
+
+    private fun toTeachers(query: Query): List<Teacher> {
+        val teachers = mutableMapOf<TeacherShort, List<Subject>>()
 
         query.forEach { row ->
-            val teacherId = row[TeachersTable.id].value
-            val subjectExists = row.getOrNull(TeachersToSubjectsTable.subjectId) != null
-            val teacher = teachers[teacherId]?.let {
-                it.copy(subjects = it.subjects + PgSubjects.toSubject(row))
-            } ?: TeacherDetail(
-                id = teacherId,
-                firstname = row[TeachersTable.firstname],
-                lastname = row[TeachersTable.lastname],
-                subjects = if (subjectExists) listOf(PgSubjects.toSubject(row)) else listOf()
-            )
-            teachers[teacherId] = teacher
+            val teacher = toTeacherShort(row)
+            val subject = row.getOrNull(SubjectsTable.id)?.let { PgSubjects.toSubject(row) }
+            teachers.merge(teacher, listOfNotNull(subject)) { a, b -> a + b }
         }
 
-        return teachers.values.toList()
+        return teachers.map {
+            Teacher(id = it.key.id, firstname = it.key.firstname, lastname = it.key.lastname, subjects = it.value)
+        }
+    }
+
+    private fun toTeachersDetail(query: Query): List<TeacherDetail> {
+        val subjects = mutableMapOf<TeacherShort, MutableList<Subject>>()
+        val lessons = mutableMapOf<TeacherShort, MutableList<Lesson>>()
+
+        query.forEach { row ->
+            val teacher = toTeacherShort(row)
+            subjects.computeIfAbsent(teacher) { mutableListOf() }
+            lessons.computeIfAbsent(teacher) { mutableListOf() }
+            row.getOrNull(SubjectsTable.id)?.let { subjects.getValue(teacher).add(PgSubjects.toSubject(row)) }
+            row.getOrNull(LessonsTable.id)?.let { lessons.getValue(teacher).add(PgLessons.toLesson(row)) }
+        }
+
+        return subjects.keys.map {
+            TeacherDetail(
+                id = it.id,
+                firstname = it.firstname,
+                lastname = it.lastname,
+                subjects = subjects.getValue(it).distinct(),
+                lessons = lessons.getValue(it)
+            )
+        }
     }
 
     companion object {
-        fun toTeacher(row: ResultRow): Teacher = Teacher(
+        fun toTeacherShort(row: ResultRow): TeacherShort = TeacherShort(
             id = row[TeachersTable.id].value,
             firstname = row[TeachersTable.firstname],
             lastname = row[TeachersTable.lastname]

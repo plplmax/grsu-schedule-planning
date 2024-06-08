@@ -5,7 +5,7 @@ import subjectsService from '@/subjects/subjects.service'
 import type { Group, GroupDetail, GroupDetailUi } from '@/groups/group'
 import type { Subject } from '@/subjects/Subject'
 import { computed } from 'vue'
-import type { TeacherDetail } from '@/teachers/Teacher'
+import type { Teacher } from '@/teachers/Teacher'
 import type { Room } from '@/rooms/room'
 import teachersService from '@/teachers/teachers.service'
 import roomsService from '@/rooms/rooms.service'
@@ -15,7 +15,7 @@ import type { LessonUi } from '@/lessons/lesson'
 
 const groups = ref<Group[]>([]) as Ref<Group[]>
 const subjects = ref<Subject[]>([])
-const teachersDetail = ref<TeacherDetail[]>([])
+const teachers = ref<Teacher[]>([])
 const rooms = ref<Room[]>([])
 const subgroups = ref<SubgroupDetail[]>([])
 const hours = [...Array(11).keys()].slice(1)
@@ -175,7 +175,7 @@ onMounted(() => {
 
   teachersService
     .all()
-    .then((value) => (teachersDetail.value = value))
+    .then((value) => (teachers.value = value))
     .catch((error) => console.error(error))
 
   roomsService
@@ -300,7 +300,7 @@ onMounted(() => {
                         <v-select
                           label="Учитель"
                           :items="
-                            teachersDetail
+                            teachers
                               .filter((teacher) =>
                                 teacher.subjects.some((value) => value.id === subject.id)
                               )

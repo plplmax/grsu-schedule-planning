@@ -57,7 +57,7 @@ class PgLessons(
             id = row[LessonsTable.id].value,
             group = PgGroups.toGroup(row),
             subgroup = PgDivisions.toSubgroupDetail(row),
-            teacher = PgTeachers.toTeacher(row),
+            teacher = PgTeachers.toTeacherShort(row),
             subject = PgSubjects.toSubject(row),
             room = PgRooms.toRoom(row),
             timeslot = row.getOrNull(TimeslotsTable.id)?.let { PgTimeslots.toTimeslot(row) }
