@@ -42,6 +42,9 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
     implementation("org.postgresql:postgresql:$postgresVersion")
     implementation("ai.timefold.solver:timefold-solver-core:$timefoldVersion")
+    implementation("ai.timefold.solver:timefold-solver-benchmark:$timefoldVersion")
+    implementation("ai.timefold.solver:timefold-solver-test:$timefoldVersion")
+    implementation("org.freemarker:freemarker:2.3.31")
     testImplementation("io.ktor:ktor-server-tests:$ktorVersion")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlinVersion")
 }

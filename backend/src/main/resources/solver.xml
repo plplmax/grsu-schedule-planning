@@ -8,20 +8,34 @@
     </scoreDirectorFactory>
 
     <termination>
-        <unimprovedSecondsSpentLimit>30</unimprovedSecondsSpentLimit>
+        <minutesSpentLimit>1</minutesSpentLimit>
     </termination>
 
     <constructionHeuristic>
-        <constructionHeuristicType>FIRST_FIT</constructionHeuristicType>
+        <constructionHeuristicType>FIRST_FIT_DECREASING</constructionHeuristicType>
     </constructionHeuristic>
 
     <localSearch>
-        <localSearchType>LATE_ACCEPTANCE</localSearchType>
         <unionMoveSelector>
-            <changeMoveSelector />
-            <swapMoveSelector />
-            <pillarSwapMoveSelector />
-            <pillarChangeMoveSelector />
+            <changeMoveSelector>
+                <fixedProbabilityWeight>1.5</fixedProbabilityWeight>
+            </changeMoveSelector>
+            <swapMoveSelector>
+                <filterClass>com.github.plplmax.planning.timetable.DifferentSubjectsSwapMoveFilter</filterClass>
+                <fixedProbabilityWeight>1.5</fixedProbabilityWeight>
+            </swapMoveSelector>
+            <pillarSwapMoveSelector>
+                <fixedProbabilityWeight>0.5</fixedProbabilityWeight>
+            </pillarSwapMoveSelector>
+            <pillarChangeMoveSelector>
+                <fixedProbabilityWeight>0.5</fixedProbabilityWeight>
+            </pillarChangeMoveSelector>
         </unionMoveSelector>
+        <acceptor>
+            <entityTabuRatio>0.2</entityTabuRatio>
+        </acceptor>
+        <forager>
+            <acceptedCountLimit>1000</acceptedCountLimit>
+        </forager>
     </localSearch>
 </solver>

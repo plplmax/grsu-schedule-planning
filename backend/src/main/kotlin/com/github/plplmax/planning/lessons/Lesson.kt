@@ -11,9 +11,10 @@ import com.github.plplmax.planning.subjects.Subject
 import com.github.plplmax.planning.teachers.TeacherShort
 import com.github.plplmax.planning.timeslots.Timeslot
 import kotlinx.serialization.Serializable
+import org.apache.commons.lang3.builder.HashCodeBuilder
 
 @Serializable
-@PlanningEntity
+@PlanningEntity(difficultyComparatorClass = LessonDifficultyComparator::class)
 data class Lesson(
     @PlanningId
     val id: Int = 0,
@@ -24,4 +25,13 @@ data class Lesson(
     val room: Room = Room(0, "", 0),
     @PlanningVariable
     val timeslot: Timeslot? = null
-)
+) {
+
+    override fun hashCode(): Int {
+        return HashCodeBuilder().append(id).toHashCode()
+    }
+
+    override fun toString(): String {
+        return "Lesson($id, $group, $subgroup, $subject)"
+    }
+}

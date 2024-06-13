@@ -1,5 +1,6 @@
 package com.github.plplmax.planning.timetable
 
+import ai.timefold.solver.core.api.domain.constraintweight.ConstraintConfigurationProvider
 import ai.timefold.solver.core.api.domain.solution.PlanningEntityCollectionProperty
 import ai.timefold.solver.core.api.domain.solution.PlanningScore
 import ai.timefold.solver.core.api.domain.solution.PlanningSolution
@@ -23,5 +24,7 @@ data class Timetable(
     @ProblemFactCollectionProperty
     val subjects: List<SubjectDetail> = listOf(),
     @PlanningScore
-    val score: HardSoftScore = HardSoftScore.ZERO
+    val score: HardSoftScore = HardSoftScore.ZERO,
+    @ConstraintConfigurationProvider
+    val constraintConfiguration: TimetableConstraintConfiguration = TimetableConstraintConfiguration()
 )

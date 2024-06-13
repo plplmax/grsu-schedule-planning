@@ -1,5 +1,6 @@
 package com.github.plplmax.planning.timetable
 
+import ai.timefold.solver.benchmark.api.PlannerBenchmarkFactory
 import ai.timefold.solver.core.api.score.buildin.hardsoft.HardSoftScore
 import ai.timefold.solver.core.api.solver.SolutionManager
 import ai.timefold.solver.core.api.solver.SolverManager
@@ -65,6 +66,20 @@ class TimetableRoute(
                         score = HardSoftScore.ZERO
                     )
                 ).also { call.respond(it.toString()) }
+            }
+            post("/benchmark") {
+                val timetable = Timetable(
+                    timeslots = timeslots.all(),
+                    lessons = lessons.all().map { it.copy(timeslot = null) },
+                    pairedSubjects = pairedSubjects.all(),
+                    subjects = subjects.allDetails(),
+                    score = HardSoftScore.ZERO
+                )
+                PlannerBenchmarkFactory.createFromFreemarkerXmlResource(
+                    "benchmark.xml"
+                ).buildPlannerBenchmark(timetable).benchmarkAndShowReportInBrowser()
+
+                call.respond(HttpStatusCode.OK)
             }
         }
     }

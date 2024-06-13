@@ -1,11 +1,8 @@
 package com.github.plplmax.planning.timetable
 
-import ai.timefold.solver.core.api.score.buildin.hardsoft.HardSoftScore
-import ai.timefold.solver.core.api.score.stream.Constraint
+import ai.timefold.solver.core.api.score.stream.*
 import ai.timefold.solver.core.api.score.stream.ConstraintCollectors.*
-import ai.timefold.solver.core.api.score.stream.ConstraintFactory
-import ai.timefold.solver.core.api.score.stream.ConstraintProvider
-import ai.timefold.solver.core.api.score.stream.Joiners
+import ai.timefold.solver.core.impl.util.Quadruple
 import com.github.plplmax.planning.lessons.Lesson
 import com.github.plplmax.planning.subjects.SubjectDetail
 import com.github.plplmax.planning.subjects.paired.PairedSubjects
@@ -20,7 +17,8 @@ class TimetableConstraintProvider : ConstraintProvider {
         return arrayOf(
             roomCapacity(constraintFactory),
             teacherConflict(constraintFactory),
-            groupConflict(constraintFactory),
+            subgroupConflict(constraintFactory),
+            divisionConflict(constraintFactory),
             evenlyDistributedLessonsPerDay(constraintFactory),
             noGapsAtFirstTimeslotEachDay(constraintFactory),
             subjectVarietyPerDay(constraintFactory),
@@ -31,39 +29,53 @@ class TimetableConstraintProvider : ConstraintProvider {
             minDaysBetweenLessonsHard(constraintFactory),
             minDaysBetweenLessonsSoft(constraintFactory),
             onceFirstOrLastTimeslot(constraintFactory),
-            subgroupTimeEfficiency(constraintFactory)
+            subgroupTimeEfficiency(constraintFactory),
+            subjectSequentialVariety(constraintFactory),
+            teacherTimeEfficiency(constraintFactory)
         )
     }
 
-    private fun roomCapacity(constraintFactory: ConstraintFactory): Constraint {
+    internal fun roomCapacity(constraintFactory: ConstraintFactory): Constraint {
         return constraintFactory.forEach(Lesson::class.java)
-            .groupBy(Lesson::room, Lesson::timeslot, count())
-            .filter { room, _, count -> count > room.capacity }
-            .penalize(HardSoftScore.ONE_HARD)
+            .groupBy(Lesson::room, Lesson::timeslot, count(), toList())
+            .filter { room, _, count, _ -> count > room.capacity }
+            .penalizeConfigurable { room, _, count, _ -> count - room.capacity }
             .asConstraint("Room capacity")
     }
 
-    private fun teacherConflict(constraintFactory: ConstraintFactory): Constraint {
+    internal fun teacherConflict(constraintFactory: ConstraintFactory): Constraint {
         return constraintFactory
             .forEachUniquePair(
                 Lesson::class.java,
                 Joiners.equal(Lesson::timeslot),
                 Joiners.equal(Lesson::teacher)
             )
-            .penalize(HardSoftScore.ONE_HARD)
+            .penalizeConfigurable()
             .asConstraint("Teacher conflict")
     }
 
-    private fun groupConflict(constraintFactory: ConstraintFactory): Constraint {
+    internal fun subgroupConflict(constraintFactory: ConstraintFactory): Constraint {
         return constraintFactory
             .forEachUniquePair(
                 Lesson::class.java,
                 Joiners.equal(Lesson::timeslot),
                 Joiners.equal(Lesson::group),
-                Joiners.filtering { first, second -> first.subgroup.division != second.subgroup.division || first.subgroup == second.subgroup }
+                Joiners.equal(Lesson::subgroup)
             )
-            .penalize(HardSoftScore.ONE_HARD)
-            .asConstraint("Group conflict")
+            .penalizeConfigurable()
+            .asConstraint("Subgroup conflict")
+    }
+
+    internal fun divisionConflict(constraintFactory: ConstraintFactory): Constraint {
+        return constraintFactory
+            .forEachUniquePair(
+                Lesson::class.java,
+                Joiners.equal(Lesson::timeslot),
+                Joiners.equal(Lesson::group),
+                Joiners.filtering { first, second -> first.subgroup.division != second.subgroup.division }
+            )
+            .penalizeConfigurable()
+            .asConstraint("Division conflict")
     }
 
     private fun evenlyDistributedLessonsPerDay(constraintFactory: ConstraintFactory): Constraint {
@@ -93,11 +105,11 @@ class TimetableConstraintProvider : ConstraintProvider {
                     if (it < 0) it + 1 else it
                 }.roundToInt().absoluteValue
             }.filter { _, _, penalty -> penalty > 0 }
-            .penalize(HardSoftScore.ONE_HARD) { _, _, penalty -> penalty }
+            .penalizeConfigurable { _, _, penalty -> penalty }
             .asConstraint("Evenly distributed lessons per day")
     }
 
-    private fun noGapsAtFirstTimeslotEachDay(constraintFactory: ConstraintFactory): Constraint {
+    internal fun noGapsAtFirstTimeslotEachDay(constraintFactory: ConstraintFactory): Constraint {
         return constraintFactory.forEach(Timeslot::class.java)
             .groupBy(Timeslot::dayOfWeek, collectAndThen(toList()) { it.first() })
             .join(
@@ -108,7 +120,7 @@ class TimetableConstraintProvider : ConstraintProvider {
                 Joiners.equal({ _, _, group -> group }, { lesson -> lesson.group }),
                 Joiners.equal({ _, timeslot, _ -> timeslot }, { lesson -> lesson.timeslot })
             )
-            .penalize(HardSoftScore.ONE_HARD)
+            .penalizeConfigurable()
             .asConstraint("No gaps at first timeslot each day")
     }
 
@@ -142,11 +154,11 @@ class TimetableConstraintProvider : ConstraintProvider {
                     if (it < 0) it + 1 else it
                 }.roundToInt().absoluteValue
             }.filter { _, _, _, penalty -> penalty > 0 }
-            .penalize(HardSoftScore.ONE_HARD) { _, _, _, penalty -> penalty }
+            .penalizeConfigurable { _, _, _, penalty -> penalty }
             .asConstraint("Subject variety per day")
     }
 
-    private fun groupTimeEfficiency(constraintFactory: ConstraintFactory): Constraint {
+    internal fun groupTimeEfficiency(constraintFactory: ConstraintFactory): Constraint {
         return constraintFactory.forEach(Lesson::class.java)
             .groupBy(
                 Lesson::group,
@@ -158,7 +170,7 @@ class TimetableConstraintProvider : ConstraintProvider {
             .filter { _, _, timeslots ->
                 Duration.between(timeslots.first.end, timeslots.second.start) >= Duration.ofMinutes(30)
             }
-            .penalize(HardSoftScore.ONE_HARD)
+            .penalizeConfigurable()
             .asConstraint("Group time efficiency")
     }
 
@@ -209,11 +221,11 @@ class TimetableConstraintProvider : ConstraintProvider {
                     -squaredSum + sum * sum * 1.0 / daysOfWeek.size
                 }.sumOf { (if (it < 0) it + 1 else it).roundToInt().absoluteValue }
             }.filter { _, _, penalty -> penalty > 0 }
-            .penalize(HardSoftScore.ONE_SOFT) { _, _, penalty -> penalty }
+            .penalizeConfigurable { _, _, penalty -> penalty }
             .asConstraint("Day complexity")
     }
 
-    private fun pairedSubjects(constraintFactory: ConstraintFactory): Constraint {
+    internal fun pairedSubjects(constraintFactory: ConstraintFactory): Constraint {
         return constraintFactory.forEach(PairedSubjects::class.java)
             .join(
                 constraintFactory.forEach(PairedSubjects::class.java)
@@ -250,15 +262,15 @@ class TimetableConstraintProvider : ConstraintProvider {
                 val between = Duration.between(lesson1.timeslot?.end, lesson2.timeslot?.start)
                 lesson1.timeslot?.dayOfWeek != lesson2.timeslot?.dayOfWeek || between > Duration.ofMinutes(30)
             }
-            .penalize(HardSoftScore.ONE_HARD)
+            .penalizeConfigurable()
             .asConstraint("Paired subjects")
     }
 
-    private fun disallowedSubjectsTimeslots(constraintFactory: ConstraintFactory): Constraint {
+    internal fun disallowedSubjectsTimeslots(constraintFactory: ConstraintFactory): Constraint {
         return constraintFactory.forEach(Lesson::class.java)
             .join(SubjectDetail::class.java, Joiners.equal({ lesson -> lesson.subject.id }, SubjectDetail::id))
             .filter { lesson, subject -> subject.disallowedTimeslots.contains(lesson.timeslot) }
-            .penalize(HardSoftScore.ONE_HARD)
+            .penalizeConfigurable()
             .asConstraint("Disallowed subjects timeslots")
     }
 
@@ -274,7 +286,7 @@ class TimetableConstraintProvider : ConstraintProvider {
                         if (diff >= subject.minDaysBetween) 0 else subject.minDaysBetween - diff
                     }
             }.filter { _, _, _, penalty -> penalty > 0 }
-            .penalize(HardSoftScore.ONE_HARD) { _, _, _, penalty -> penalty }
+            .penalizeConfigurable { _, _, _, penalty -> penalty }
             .asConstraint("Min days between lessons [hard]")
     }
 
@@ -290,7 +302,7 @@ class TimetableConstraintProvider : ConstraintProvider {
                         if (diff >= subject.minDaysBetween) diff - subject.minDaysBetween else -(subject.minDaysBetween - diff)
                     }
             }.filter { _, _, _, penalty -> penalty != 0 }
-            .impact(HardSoftScore.ONE_SOFT) { _, _, _, penalty -> penalty }
+            .impactConfigurable { _, _, _, penalty -> penalty }
             .asConstraint("Min days between lessons [soft]")
     }
 
@@ -298,50 +310,74 @@ class TimetableConstraintProvider : ConstraintProvider {
         return constraintFactory.forEach(Lesson::class.java)
             .groupBy(
                 Lesson::group,
-                { lesson -> lesson.timeslot!!.dayOfWeek },
-                collectAndThen(toList { lesson -> lesson.timeslot!! }) { timeslots ->
-                    timeslots.minBy(Timeslot::start) to timeslots.maxBy(Timeslot::start)
-                })
-            .groupBy({ group, _, _ -> group }, toList { _, _, timeslots -> timeslots })
-            .map({ group, _ -> group }, { _, timeslots -> timeslots.flatMap { it.toList() } })
-            .join(SubjectDetail::class.java, Joiners.filtering { _, _, subject -> subject.onceFirstOrLastTimeslot })
+                { it.timeslot!!.dayOfWeek },
+                min { lesson -> lesson.timeslot!!.start },
+                max { lesson -> lesson.timeslot!!.start })
+            .map { group, dayOfWeek, firstStart, lastStart -> Quadruple(group, dayOfWeek, firstStart, lastStart) }
             .join(
+                constraintFactory.forEach(SubjectDetail::class.java)
+                    .filter(SubjectDetail::onceFirstOrLastTimeslot),
+            ).join(
                 Lesson::class.java,
-                Joiners.equal({ group, _, _ -> group }, Lesson::group),
-                Joiners.equal({ _, _, subject -> subject.id }, { lesson -> lesson.subject.id })
-            )
-            .groupBy(
-                { group, _, _, _ -> group },
-                { _, timeslots, _, _ -> timeslots },
-                { _, _, subject, _ -> subject },
-                toList { _, _, _, lesson -> lesson.timeslot!! })
-            .filter { _, firstOrLastTimeslots, _, timeslots -> !timeslots.any { firstOrLastTimeslots.contains(it) } }
-            .penalize(HardSoftScore.ONE_HARD)
+                Joiners.equal({ first, _ -> first.a }, Lesson::group),
+                Joiners.equal({ _, subject -> subject.id }, { lesson -> lesson.subject.id })
+            ).groupBy({ first, _, _ -> first.a },
+                { _, subject, _ -> subject },
+                sum { first, _, lesson -> if (lesson.timeslot!!.dayOfWeek == first.b && (lesson.timeslot.start == first.c || lesson.timeslot.start == first.d)) 1 else 0 })
+            .filter { _, _, count -> count == 0 }
+            .penalizeConfigurable()
             .asConstraint("Once first or last timeslot")
     }
 
-    private fun subgroupTimeEfficiency(constraintFactory: ConstraintFactory): Constraint {
+    internal fun subgroupTimeEfficiency(constraintFactory: ConstraintFactory): Constraint {
         return constraintFactory.forEach(Lesson::class.java)
             .groupBy(
                 Lesson::group,
                 { it.subgroup.division },
                 collectAndThen(toList()) { lessons -> lessons.groupBy(Lesson::subgroup) })
             .expand { _, _, subgroups ->
-                val lessonCountByTimeslot =
-                    subgroups.values.flatten().groupingBy(Lesson::timeslot).eachCount().toMutableMap()
                 val maxSubgroupLessons = subgroups.values.maxOf(List<Lesson>::size)
-                (0 until maxSubgroupLessons).map { index ->
-                    subgroups.values.mapNotNull { it.getOrNull(index) }
-                }.sumOf { pair ->
-                    lessonCountByTimeslot.firstNotNullOfOrNull {
-                        if (it.value == pair.size) it.key else null
-                    }?.let {
-                        lessonCountByTimeslot.remove(it)
-                        0
-                    } ?: (1).toInt()
-                }
+                (maxSubgroupLessons - subgroups.values.flatten().distinctBy { it.timeslot }.size).absoluteValue
             }.filter { _, _, _, penalty -> penalty > 0 }
-            .penalize(HardSoftScore.ONE_HARD) { _, _, _, penalty -> penalty }
+            .penalizeConfigurable { _, _, _, penalty -> penalty }
             .asConstraint("Subgroup time efficiency")
+    }
+
+    private fun teacherTimeEfficiency(constraintFactory: ConstraintFactory): Constraint {
+        return constraintFactory
+            .forEach(Lesson::class.java)
+            .join(
+                Lesson::class.java, Joiners.equal(Lesson::teacher),
+                Joiners.equal{ lesson: Lesson -> lesson.timeslot!!.dayOfWeek })
+            .filter { lesson1: Lesson, lesson2: Lesson ->
+                val between = Duration.between(
+                    lesson1.timeslot!!.end,
+                    lesson2.timeslot!!.start
+                )
+                !between.isNegative && between <= Duration.ofMinutes(30)
+            }
+            .rewardConfigurable()
+            .asConstraint("Teacher time efficiency")
+    }
+
+    private fun subjectSequentialVariety(constraintFactory: ConstraintFactory): Constraint {
+        return constraintFactory
+            .forEach(Lesson::class.java)
+            .join(
+                Lesson::class.java,
+                Joiners.equal(Lesson::subject),
+                Joiners.equal(Lesson::group),
+                Joiners.equal(Lesson::subgroup),
+                Joiners.equal{ lesson: Lesson -> lesson.timeslot!!.dayOfWeek }
+            )
+            .filter { lesson1: Lesson, lesson2: Lesson ->
+                val between = Duration.between(
+                    lesson1.timeslot!!.end,
+                    lesson2.timeslot!!.start
+                )
+                !between.isNegative && between <= Duration.ofMinutes(30)
+            }
+            .penalizeConfigurable()
+            .asConstraint("Subject sequential variety")
     }
 }

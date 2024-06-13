@@ -234,12 +234,11 @@ onMounted(() => {
                                 item.subgroup?.id === value.subgroup?.id &&
                                 item.room?.id === value.room?.id
                             ) === index
-                        )
-                        .sort((a, b) => b.id - a.id)"
+                        )"
                       :key="lesson.id"
                     >
                       <v-col>
-                        <v-select
+                        <v-autocomplete
                           label="Класс"
                           :items="groups"
                           :model-value="lesson.group"
@@ -256,7 +255,7 @@ onMounted(() => {
                           return-object
                           prepend-icon="mdi-delete"
                           @click:prepend="updateHours(0, lesson)"
-                        ></v-select>
+                        ></v-autocomplete>
                       </v-col>
                       <v-col>
                         <v-select

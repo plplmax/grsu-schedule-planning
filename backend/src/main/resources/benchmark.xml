@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plannerBenchmark xmlns="https://timefold.ai/xsd/benchmark" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="https://timefold.ai/xsd/benchmark https://timefold.ai/xsd/benchmark/benchmark.xsd">
+    <benchmarkDirectory>local/data</benchmarkDirectory>
+
+    <inheritedSolverBenchmark>
+        <solver>
+            <solutionClass>com.github.plplmax.planning.timetable.Timetable</solutionClass>
+            <entityClass>com.github.plplmax.planning.lessons.Lesson</entityClass>
+
+            <scoreDirectorFactory>
+                <constraintProviderClass>com.github.plplmax.planning.timetable.TimetableConstraintProvider</constraintProviderClass>
+            </scoreDirectorFactory>
+
+            <termination>
+                <minutesSpentLimit>1</minutesSpentLimit>
+            </termination>
+
+            <constructionHeuristic>
+                <constructionHeuristicType>FIRST_FIT</constructionHeuristicType>
+            </constructionHeuristic>
+        </solver>
+        <problemBenchmarks>
+            <problemStatisticType>BEST_SCORE</problemStatisticType>
+            <problemStatisticType>STEP_SCORE</problemStatisticType>
+            <singleStatisticType>CONSTRAINT_MATCH_TOTAL_BEST_SCORE</singleStatisticType>
+            <singleStatisticType>CONSTRAINT_MATCH_TOTAL_STEP_SCORE</singleStatisticType>
+        </problemBenchmarks>
+    </inheritedSolverBenchmark>
+
+    <#list [0.2, 0.4] as entityTabuRatio>
+    <#list [1000] as acceptedCountLimit>
+    <solverBenchmark>
+        <name>Tabu Search entityTabuRatio ${entityTabuRatio}</name>
+        <solver>
+            <localSearch>
+                <unionMoveSelector>
+                    <changeMoveSelector>
+                    </changeMoveSelector>
+                    <swapMoveSelector>
+                        <filterClass>com.github.plplmax.planning.timetable.DifferentSubjectsSwapMoveFilter</filterClass>
+                    </swapMoveSelector>
+                    <pillarSwapMoveSelector>
+                    </pillarSwapMoveSelector>
+                    <pillarChangeMoveSelector>
+                    </pillarChangeMoveSelector>
+                </unionMoveSelector>
+                <acceptor>
+                    <entityTabuRatio>${entityTabuRatio}</entityTabuRatio>
+                </acceptor>
+                <forager>
+                    <acceptedCountLimit>${acceptedCountLimit}</acceptedCountLimit>
+                </forager>
+            </localSearch>
+        </solver>
+    </solverBenchmark>
+    </#list>
+    </#list>
+</plannerBenchmark>

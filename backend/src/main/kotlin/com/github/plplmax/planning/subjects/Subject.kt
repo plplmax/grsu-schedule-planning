@@ -10,4 +10,8 @@ data class Subject(
     val minDaysBetween: Int,
     val minDaysStrict: Boolean,
     val onceFirstOrLastTimeslot: Boolean
-)
+) {
+    override fun toString(): String {
+        return name
+    }
+}

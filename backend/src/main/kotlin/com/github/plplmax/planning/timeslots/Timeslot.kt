@@ -11,4 +11,8 @@ import java.time.DayOfWeek
 import java.time.LocalTime
 
 @Serializable
-data class Timeslot(@PlanningId val id: Int, val dayOfWeek: DayOfWeek, val start: LocalTime, val end: LocalTime)
+data class Timeslot(@PlanningId val id: Int, val dayOfWeek: DayOfWeek, val start: LocalTime, val end: LocalTime) {
+    override fun toString(): String {
+        return "$dayOfWeek $start - $end"
+    }
+}
